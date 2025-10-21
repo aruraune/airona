@@ -1,0 +1,14 @@
+*
+!src/
+!src/**
+!.containerignore
+!.gitignore
+!.python-version
+!compose.yaml
+!Containerfile
+!pyproject.toml
+!pyrightconfig.json
+!README.md
+!uv.lock
+
+__pycache__/
