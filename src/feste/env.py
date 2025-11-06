@@ -1,4 +1,5 @@
 import functools
+import logging
 import tomllib
 from pathlib import Path
 
@@ -16,11 +17,25 @@ def discord() -> Discord:
 
 
 class Config(BaseModel):
+    class Glue(BaseModel):
+        interval: int
+
+    glue: Glue
+
     class Db(BaseModel):
         url: str
-        log: bool = False
 
     db: Db
+
+    class Apscheduler(BaseModel):
+        jobstore: str
+
+    apscheduler: Apscheduler
+
+    class Sqlalchemy(BaseModel):
+        log_level: int = logging.WARNING
+
+    sqlalchemy: Sqlalchemy
 
 
 @functools.cache

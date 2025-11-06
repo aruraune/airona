@@ -2,5 +2,6 @@
 	"reportAny": false,
 	"reportUnknownMemberType": false,
 	"reportUnknownVariableType": false,
-	"reportUnusedCallResult": false
+	"reportUnusedCallResult": false,
+    "reportMissingTypeStubs": false,
 }
