@@ -87,7 +87,7 @@ def edit_ping(
             trigger = CronTrigger.from_crontab(schedule)
         except ValueError:
             raise
-        ping_scheduler.modify_job(f"{ping.id}", trigger=trigger)
+        ping_scheduler.reschedule_job(f"{ping.id}", trigger=trigger)
         ping.schedule = schedule
     if duration is not None:
         if duration < 0:
