@@ -1,7 +1,7 @@
 [project]
 name = "feste"
 version = "0.1.0"
-description = "Reminds you."
+description = "Reminds you to do your chores."
 readme = "README.md"
 authors = [
     { name = "kuwifuwa" }

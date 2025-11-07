@@ -6,7 +6,7 @@ from hikari import GatewayBot
 from feste.db.connection import db
 from feste.db.model import Base
 from feste.env import cfg, discord
-from feste.ext import glue, settings
+from feste.ext import glue, ping, ping_select, settings
 
 
 def main() -> None:
@@ -16,6 +16,8 @@ def main() -> None:
 
     client = GatewayClient(bot)
     client.add_plugin(glue.plugin)
+    client.add_plugin(ping.plugin)
+    client.add_plugin(ping_select.plugin)
     client.add_plugin(settings.plugin)
 
     bot.run()

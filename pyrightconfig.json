@@ -2,6 +2,7 @@
 	"reportAny": false,
 	"reportUnknownMemberType": false,
 	"reportUnknownVariableType": false,
+    "reportUnknownArgumentType": false,
 	"reportUnusedCallResult": false,
     "reportMissingTypeStubs": false,
 }
