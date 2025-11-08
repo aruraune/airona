@@ -27,6 +27,7 @@ class Config(BaseModel):
 
     class Apscheduler(BaseModel):
         jobstore: str
+        log_level: int = logging.WARNING
 
     apscheduler: Apscheduler
 
