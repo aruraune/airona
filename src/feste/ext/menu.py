@@ -127,11 +127,14 @@ async def _(event: ComponentInteractionCreateEvent) -> None:
 @plugin.listen()
 async def _(event: ComponentInteractionCreateEvent) -> None:
     itx = event.interaction
-    if itx.member is None or itx.custom_id != "subscriptions":
+    if itx.custom_id != "subscriptions" or itx.member is None:
         return
     with db().sm.begin() as session:
-        pings = session.scalars(select(model.Ping))
-        role_ids = set(x.role_id for x in pings) & set(itx.member.role_ids)
+        pings = session.scalars(
+            select(model.Ping).where(model.Ping.guild_id == itx.member.guild_id)
+        )
+        member_role_ids = frozenset(itx.member.role_ids)
+        role_ids = [x.role_id for x in pings if x.role_id in member_role_ids]
     roles_clause = " ".join(f"<@&{x}>" for x in role_ids)
     await itx.create_initial_response(
         ResponseType.MESSAGE_CREATE,
