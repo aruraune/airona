@@ -15,11 +15,18 @@ class Guild(Base):
 
     pings: Mapped[OrderingList[Ping]] = relationship(
         "Ping",
-        back_populates="guild",
-        order_by="Ping.index",
         collection_class=ordering_list("index"),
+        order_by="Ping.index",
+        back_populates="guild",
+        cascade="save-update, merge, delete",
+        passive_deletes=True,
     )
-    glue: Mapped[Glue | None] = relationship("Glue", back_populates="guild")
+    glue: Mapped[Glue | None] = relationship(
+        "Glue",
+        back_populates="guild",
+        cascade="save-update, merge, delete",
+        passive_deletes=True,
+    )
 
 
 class Ping(Base):
@@ -28,7 +35,7 @@ class Ping(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
 
-    guild_id: Mapped[int] = mapped_column(ForeignKey(Guild.id))
+    guild_id: Mapped[int] = mapped_column(ForeignKey(Guild.id, ondelete="CASCADE"))
     index: Mapped[int] = mapped_column()
 
     role_id: Mapped[int] = mapped_column()
@@ -46,6 +53,6 @@ class Glue(Base):
 
     channel_id: Mapped[int] = mapped_column(primary_key=True)
     message_id: Mapped[int] = mapped_column()
-    guild_id: Mapped[int] = mapped_column(ForeignKey(Guild.id))
+    guild_id: Mapped[int] = mapped_column(ForeignKey(Guild.id, ondelete="CASCADE"))
 
     guild: Mapped[Guild] = relationship("Guild", back_populates="glue")
