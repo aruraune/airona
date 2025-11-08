@@ -22,7 +22,7 @@ from hikari.impl import TextDisplayComponentBuilder
 
 from feste.db import model
 from feste.db.connection import db
-from feste.ext.glue import queue_glue
+from feste.ext.glue import repost_glue_deferred
 from feste.ext.settings import settings_group
 from feste.lib.ping import (
     create_ping,
@@ -200,7 +200,7 @@ async def post_ping(ping_id: int) -> None:
         glue = session.get(model.Glue, ping.channel_id)
         if glue is None:
             return
-        queue_glue(session, glue)
+        repost_glue_deferred(glue.channel_id)
 
 
 async def post_ping_loop() -> None:

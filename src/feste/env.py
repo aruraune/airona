@@ -17,10 +17,8 @@ def discord() -> Discord:
 
 
 class Config(BaseModel):
-    class Glue(BaseModel):
-        interval: int
-
-    glue: Glue
+    glue_interval: int
+    subscribers_interval: int
 
     class Db(BaseModel):
         url: str

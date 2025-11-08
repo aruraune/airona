@@ -27,14 +27,14 @@ from feste.typing import Components
 plugin = GatewayPlugin(__name__)
 
 
-def ping_select_custom_id(index: int) -> str:
-    return f"ping_select:{index}"
+def menu_custom_id(index: int) -> str:
+    return f"subscribe:{index}"
 
 
-RE_PING_SELECT_CUSTOM_ID = re.compile(r"ping_select:(\d+)")
+RE_SUBSCRIBE_CUSTOM_ID = re.compile(r"subscribe:(\d+)")
 
 
-def build_ping_select(guild_id: Snowflakeish) -> Components:
+def build_menu(guild_id: Snowflakeish) -> Components:
     components = []
     with db().sm.begin() as session:
         guild = session.get(model.Guild, guild_id)
@@ -50,6 +50,9 @@ def build_ping_select(guild_id: Snowflakeish) -> Components:
             if job is None:
                 continue
             beg_timestamp = int(cast(datetime, job.next_run_time).timestamp())
+            subscribers_clause = (
+                f" ({ping.subscribers})" if ping.subscribers is not None else ""
+            )
             components.append(
                 SectionComponentBuilder(
                     components=[
@@ -59,8 +62,8 @@ def build_ping_select(guild_id: Snowflakeish) -> Components:
                         )
                     ],
                     accessory=InteractiveButtonBuilder(
-                        custom_id=ping_select_custom_id(ping.index),
-                        label="Subscribe",
+                        custom_id=menu_custom_id(ping.index),
+                        label=f"Subscribe{subscribers_clause}",
                         style=ButtonStyle.PRIMARY,
                     ),
                 )
@@ -73,7 +76,7 @@ async def _(event: ComponentInteractionCreateEvent) -> None:
     itx = event.interaction
     if itx.member is None:
         return
-    match = RE_PING_SELECT_CUSTOM_ID.fullmatch(itx.custom_id)
+    match = RE_SUBSCRIBE_CUSTOM_ID.fullmatch(itx.custom_id)
     if match is None:
         return
     index = int(match.group(1))

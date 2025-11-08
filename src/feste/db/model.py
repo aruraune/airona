@@ -32,6 +32,7 @@ class Ping(Base):
     index: Mapped[int] = mapped_column()
 
     role_id: Mapped[int] = mapped_column()
+    subscribers: Mapped[int | None] = mapped_column()
     channel_id: Mapped[int] = mapped_column()
     schedule: Mapped[str] = mapped_column()
     duration: Mapped[int] = mapped_column()
@@ -46,6 +47,5 @@ class Glue(Base):
     channel_id: Mapped[int] = mapped_column(primary_key=True)
     message_id: Mapped[int] = mapped_column()
     guild_id: Mapped[int] = mapped_column(ForeignKey(Guild.id))
-    queued: Mapped[bool] = mapped_column()
 
     guild: Mapped[Guild] = relationship("Guild", back_populates="glue")
