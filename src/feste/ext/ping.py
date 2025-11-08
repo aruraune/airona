@@ -36,7 +36,7 @@ from feste.typing import Components
 plugin = GatewayPlugin(__name__)
 
 ping_group = settings_group.include_subgroup("ping", "Manage pings.")
-MAX_PINGS = 12
+MAX_PINGS = 10
 
 
 @ping_group.include
@@ -169,7 +169,7 @@ def build_ping_list(guild_id: Snowflakeish) -> Components:
     components = []
     with db().sm.begin() as session:
         guild = session.get(model.Guild, guild_id)
-        if guild is None or len(guild.pings) == 0:
+        if guild is None or not guild.pings:
             return [TextDisplayComponentBuilder(content="*No pings.*")]
         for ping in guild.pings:
             components.append(

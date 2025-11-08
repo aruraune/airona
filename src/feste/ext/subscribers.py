@@ -22,7 +22,7 @@ async def update_subscribers() -> None:
             members = plugin.client.cache.get_members_view_for_guild(
                 ping.guild_id
             ).values()
-            if len(members) == 0:
+            if not members:
                 continue
             subscribers = sum(1 for x in members if ping.role_id in x.role_ids)
             if ping.subscribers == subscribers:

@@ -15,9 +15,11 @@ from hikari import (
 )
 from hikari.impl import (
     InteractiveButtonBuilder,
+    MessageActionRowBuilder,
     SectionComponentBuilder,
     TextDisplayComponentBuilder,
 )
+from sqlalchemy import select
 
 from feste.db import model
 from feste.db.connection import db
@@ -38,7 +40,7 @@ def build_menu(guild_id: Snowflakeish) -> Components:
     components = []
     with db().sm.begin() as session:
         guild = session.get(model.Guild, guild_id)
-        if guild is None or len(guild.pings) == 0:
+        if guild is None or not guild.pings:
             return [TextDisplayComponentBuilder(content="*No pings.*")]
         components.append(
             TextDisplayComponentBuilder(
@@ -68,6 +70,18 @@ def build_menu(guild_id: Snowflakeish) -> Components:
                     ),
                 )
             )
+        components.append(
+            MessageActionRowBuilder(
+                components=[
+                    InteractiveButtonBuilder(
+                        custom_id="subscriptions",
+                        emoji="\N{NEWSPAPER}",
+                        label="What am I subscribed to?",
+                        style=ButtonStyle.SECONDARY,
+                    )
+                ]
+            )
+        )
     return components
 
 
@@ -108,3 +122,19 @@ async def _(event: ComponentInteractionCreateEvent) -> None:
                 ResponseType.MESSAGE_CREATE,
                 "\N{CROSS MARK} Missing `Manage Roles` permission.",
             )
+
+
+@plugin.listen()
+async def _(event: ComponentInteractionCreateEvent) -> None:
+    itx = event.interaction
+    if itx.member is None or itx.custom_id != "subscriptions":
+        return
+    with db().sm.begin() as session:
+        pings = session.scalars(select(model.Ping))
+        role_ids = set(x.role_id for x in pings) & set(itx.member.role_ids)
+    roles_clause = " ".join(f"<@&{x}>" for x in role_ids)
+    await itx.create_initial_response(
+        ResponseType.MESSAGE_CREATE,
+        f"Subscriptions: {roles_clause}" if roles_clause else "*No subscriptions.*",
+        flags=MessageFlag.EPHEMERAL,
+    )
