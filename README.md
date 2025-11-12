@@ -2,11 +2,11 @@
 
 A Discord bot that reminds you to do periodic tasks.
 
-# Official Instance
+## Official Instance
 
 [Add Feste-chan to a server!](https://discord.com/oauth2/authorize?client_id=1436467404401283121)
 
-# 🛠️ Self-hosting
+## 🛠️ Self-hosting
 
 Requires [uv](https://docs.astral.sh/uv/).
 
