@@ -1,7 +1,7 @@
 [project]
 name = "feste"
 version = "0.1.0"
-description = "Reminds you to do your chores."
+description = "A Discord bot that reminds you to do periodic tasks."
 readme = "README.md"
 authors = [
     { name = "kuwifuwa" }
