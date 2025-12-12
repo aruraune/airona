@@ -133,6 +133,12 @@ def build_raid_message(
 
     users = users or []
 
+    def filter_users(users: list[model.RaidUser], role: str, has_cleared: bool) -> list[model.RaidUser]:
+        return list(filter(lambda u: u.role == role and (has_cleared is None or u.has_cleared == has_cleared), users))
+
+    def format_user(u: model.RaidUser) -> str:
+        return f"<@{u.discord_id}>"
+
     def convert_emoji(emoji: str | None):
         if not emoji:
             return emoji
@@ -144,8 +150,15 @@ def build_raid_message(
                 return emoji
         return emoji
 
-    def format_user(u: model.RaidUser) -> str:
-        return f"<@{u.discord_id}>{raid_template.emoji.has_cleared if u.has_cleared else ''}"
+    dps_need_clear = " ".join(format_user(user) for user in filter_users(users, USER_ROLE_DPS, False))
+    dps_cleared = " ".join(format_user(user) for user in filter_users(users, USER_ROLE_DPS, True))
+    dps_separator = raid_template.emoji.has_cleared if dps_cleared else ""
+    tank_need_clear = " ".join(format_user(user) for user in filter_users(users, USER_ROLE_TANK, False))
+    tank_cleared = " ".join(format_user(user) for user in filter_users(users, USER_ROLE_TANK, True))
+    tank_separator = raid_template.emoji.has_cleared if tank_cleared else ""
+    support_need_clear = " ".join(format_user(user) for user in filter_users(users, USER_ROLE_SUPPORT, False))
+    support_cleared = " ".join(format_user(user) for user in filter_users(users, USER_ROLE_SUPPORT, True))
+    support_separator = raid_template.emoji.has_cleared if support_cleared else ""
 
     template_values: dict[str, object] = {
         "when": when,
@@ -155,9 +168,9 @@ def build_raid_message(
         "tank_emoji": raid_template.emoji.tank,
         "support_emoji": raid_template.emoji.support,
         "has_cleared_emoji": raid_template.emoji.has_cleared,
-        "dps_users": " ".join(format_user(user) for user in users if user.role == USER_ROLE_DPS),
-        "tank_users": " ".join(format_user(user) for user in users if user.role == USER_ROLE_TANK),
-        "support_users": " ".join(format_user(user) for user in users if user.role == USER_ROLE_SUPPORT),
+        "dps_users": f"{dps_need_clear} {dps_separator} {dps_cleared}",
+        "tank_users": f"{tank_need_clear} {tank_separator} {tank_cleared}",
+        "support_users": f"{support_need_clear} {support_separator} {support_cleared}",
     }
 
     message = raid_template.template.format_map(template_values)
