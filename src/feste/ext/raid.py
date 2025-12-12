@@ -208,11 +208,6 @@ async def _(event: ComponentInteractionCreateEvent):
             if user is None:
                 if itx.custom_id.startswith(RAID_ROLE_PREFIX):
                     create_raid_user(session, raid.id, itx.member.id, itx.custom_id[len(RAID_ROLE_PREFIX) + 1:])
-                    await itx.create_initial_response(
-                        ResponseType.MESSAGE_CREATE,
-                        "\N{WHITE HEAVY CHECK MARK}",
-                        flags=MessageFlag.EPHEMERAL,
-                    )
                 else:
                     await itx.create_initial_response(
                         ResponseType.MESSAGE_CREATE,
@@ -223,25 +218,10 @@ async def _(event: ComponentInteractionCreateEvent):
             else:
                 if itx.custom_id.startswith(RAID_ROLE_PREFIX):
                     edit_raid_user(session, raid.id, user.discord_id, role=itx.custom_id[len(RAID_ROLE_PREFIX) + 1:])
-                    await itx.create_initial_response(
-                        ResponseType.MESSAGE_CREATE,
-                        "\N{WHITE HEAVY CHECK MARK}",
-                        flags=MessageFlag.EPHEMERAL,
-                    )
                 elif itx.custom_id == RAID_CLEARED:
                     edit_raid_user(session, raid.id, user.discord_id, has_cleared=not user.has_cleared)
-                    await itx.create_initial_response(
-                        ResponseType.MESSAGE_CREATE,
-                        "\N{WHITE HEAVY CHECK MARK}",
-                        flags=MessageFlag.EPHEMERAL,
-                    )
                 elif itx.custom_id == RAID_SIGNOFF:
                     delete_raid_user_by_discord_id(session, raid.id, user.discord_id)
-                    await itx.create_initial_response(
-                        ResponseType.MESSAGE_CREATE,
-                        "\N{WHITE HEAVY CHECK MARK}",
-                        flags=MessageFlag.EPHEMERAL,
-                    )
                 else:
                     await itx.create_initial_response(
                         ResponseType.MESSAGE_CREATE,
@@ -249,6 +229,11 @@ async def _(event: ComponentInteractionCreateEvent):
                         flags=MessageFlag.EPHEMERAL,
                     )
                     return
+            await itx.create_initial_response(
+                ResponseType.MESSAGE_CREATE,
+                "\N{WHITE HEAVY CHECK MARK}",
+                flags=MessageFlag.EPHEMERAL,
+            )
         except ValueError as e:
             await itx.create_initial_response(
                 ResponseType.MESSAGE_CREATE,
