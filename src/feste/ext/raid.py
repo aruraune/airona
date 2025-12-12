@@ -125,7 +125,7 @@ def build_raid_message(
     when: int,
     title: str,
     host_mention: str,
-    users: set[model.RaidUser] | None = None,
+    users: list[model.RaidUser] | None = None,
     host_name: str | None = None,
     host_uid: str | None = None,
 ) -> Components:

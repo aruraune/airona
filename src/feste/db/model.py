@@ -82,7 +82,7 @@ class Raid(Base):
     title: Mapped[str] = mapped_column()
 
     guild: Mapped[Guild] = relationship("Guild", back_populates="raids")
-    users: Mapped[set[RaidUser]] = relationship("RaidUser", back_populates="raid", passive_deletes=True)
+    users: Mapped[list[RaidUser]] = relationship("RaidUser", back_populates="raid", passive_deletes=True)
 
 
 class RaidUser(Base):
