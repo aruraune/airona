@@ -1,5 +1,6 @@
 import arc
 import hikari
+import re
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.interval import IntervalTrigger
 from datetime import UTC
@@ -13,7 +14,8 @@ from hikari import (
     Snowflakeish,
     GuildMessageDeleteEvent,
     NotFoundError,
-    StartedEvent
+    StartedEvent,
+    CustomEmoji
 )
 from hikari.impl import TextDisplayComponentBuilder, MessageActionRowBuilder, InteractiveButtonBuilder
 
@@ -131,6 +133,17 @@ def build_raid_message(
 
     users = users or []
 
+    def convert_emoji(emoji: str | None):
+        if not emoji:
+            return emoji
+        match = re.match(r"^<a?:(?P<name>[^:]+):(?P<id>\d+)>$", emoji)
+        if match:
+            try:
+                return CustomEmoji(id=match.group("id"), name=match.group("name"), is_animated=emoji.startswith("<a:"))
+            except Exception:
+                return emoji
+        return emoji
+
     def format_user(u: model.RaidUser) -> str:
         return f"<@{u.discord_id}>{raid_template.emoji.has_cleared if u.has_cleared else ''}"
 
@@ -157,28 +170,28 @@ def build_raid_message(
             components=[
                 InteractiveButtonBuilder(
                     custom_id=RAID_ROLE_DPS,
-                    emoji=raid_template.emoji.dps,
-                    style=ButtonStyle.PRIMARY,
+                    emoji=convert_emoji(raid_template.emoji.dps),
+                    style=ButtonStyle.SECONDARY,
                 ),
                 InteractiveButtonBuilder(
                     custom_id=RAID_ROLE_TANK,
-                    emoji=raid_template.emoji.tank,
-                    style=ButtonStyle.PRIMARY,
+                    emoji=convert_emoji(raid_template.emoji.tank),
+                    style=ButtonStyle.SECONDARY,
                 ),
                 InteractiveButtonBuilder(
                     custom_id=RAID_ROLE_SUPPORT,
-                    emoji=raid_template.emoji.support,
-                    style=ButtonStyle.PRIMARY,
+                    emoji=convert_emoji(raid_template.emoji.support),
+                    style=ButtonStyle.SECONDARY,
                 ),
                 InteractiveButtonBuilder(
                     custom_id=RAID_CLEARED,
-                    emoji=raid_template.emoji.has_cleared,
+                    emoji=convert_emoji(raid_template.emoji.has_cleared),
                     style=ButtonStyle.SECONDARY,
                 ),
                 InteractiveButtonBuilder(
                     custom_id=RAID_SIGNOFF,
-                    emoji=raid_template.emoji.sign_off,
-                    style=ButtonStyle.DANGER,
+                    emoji=convert_emoji(raid_template.emoji.sign_off),
+                    style=ButtonStyle.SECONDARY,
                 ),
             ]
         )
