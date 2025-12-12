@@ -53,10 +53,10 @@ Requires [uv](https://docs.astral.sh/uv/).
    Press {has_cleared_emoji} if you have already cleared."""
    
    [emoji]
-   dps = "⚔️"
-   tank = "🛡️"
-   support = "✨"
-   has_cleared = "✅"
+   dps = "<:bpsr_dps:1449010393916903586>"
+   tank = "<:bpsr_tank:1449010397754691667>"
+   support = "<:bpsr_support:1449010395997274133>"
+   has_cleared = "👍"
    sign_off = "❌"
    ```
     View [env.py](src/feste/env.py) for the full configuration schema.
