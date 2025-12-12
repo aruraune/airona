@@ -41,3 +41,24 @@ class Config(BaseModel):
 def cfg() -> Config:
     with Path("./env/config.toml").open("rb") as f:
         return Config(**tomllib.load(f))
+
+
+class RaidConfig(BaseModel):
+    raid_cleanup_interval: int
+
+    template: str
+
+    class Emoji(BaseModel):
+        dps: str
+        tank: str
+        support: str
+        has_cleared: str
+        sign_off: str
+
+    emoji: Emoji
+
+
+@functools.cache
+def raid_cfg() -> RaidConfig:
+    with Path("./env/raid.toml").open("rb") as f:
+        return RaidConfig(**tomllib.load(f))

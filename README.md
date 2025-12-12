@@ -33,6 +33,32 @@ Requires [uv](https://docs.astral.sh/uv/).
     [sqlalchemy]
     log_level = 30 # WARNING
     ```
+1. Create `env/raid.toml`:
+   ```toml
+   raid_cleanup_interval = 30
+   
+   template = """
+   {title}
+   Apply on {host_mention} <t:{when}:R> @ <t:{when}:F>
+   
+   {dps_emoji} {dps_users}
+   
+   {tank_emoji} {tank_users}
+   
+   {support_emoji} {support_users}
+   
+   Interested users are shown in the order they expressed interest.
+   The Leader may choose players at their own discretion.
+   PRESS YOUR ROLE BELOW TO SHOW YOUR INTEREST.
+   Press {has_cleared_emoji} if you have already cleared."""
+   
+   [emoji]
+   dps = "⚔️"
+   tank = "🛡️"
+   support = "✨"
+   has_cleared = "✅"
+   sign_off = "❌"
+   ```
     View [env.py](src/feste/env.py) for the full configuration schema.
 1. Initialize the database:
     ```sh
