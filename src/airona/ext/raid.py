@@ -691,15 +691,6 @@ async def _(event: ComponentInteractionCreateEvent):
             )
 
 
-@plugin.listen()
-async def _(event: GuildMessageDeleteEvent):
-    if event.guild_id is None:
-        return
-
-    with (db().sm.begin() as session):
-        delete_raid_by_message_id(raid_scheduler, session, event.guild_id, event.message_id)
-
-
 async def cleanup_deleted_raids():
     with db().sm.begin() as session:
         raids = get_all_raids(session)
