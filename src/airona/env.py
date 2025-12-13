@@ -17,9 +17,6 @@ def discord() -> Discord:
 
 
 class Config(BaseModel):
-    glue_interval: int
-    subscribers_interval: int
-
     class Db(BaseModel):
         url: str
 
@@ -41,3 +38,26 @@ class Config(BaseModel):
 def cfg() -> Config:
     with Path("./env/config.toml").open("rb") as f:
         return Config(**tomllib.load(f))
+
+
+class RaidConfig(BaseModel):
+    raid_cleanup_interval: int
+
+    raid_message_template: str
+    raid_ping_template: str
+    raid_removal_dm_template: str
+
+    class Emoji(BaseModel):
+        dps: str
+        tank: str
+        support: str
+        has_cleared: str
+        sign_off: str
+
+    emoji: Emoji
+
+
+@functools.cache
+def raid_cfg() -> RaidConfig:
+    with Path("./env/raid.toml").open("rb") as f:
+        return RaidConfig(**tomllib.load(f))

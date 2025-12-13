@@ -1,10 +1,11 @@
 [project]
-name = "feste"
+name = "airona"
 version = "0.1.0"
-description = "A Discord bot that reminds you to do periodic tasks."
+description = "A Discord bot that reminds you about raids."
 readme = "README.md"
 authors = [
-    { name = "kuwifuwa" }
+    { name = "kuwifuwa" },
+    { name = "aruraune" }
 ]
 requires-python = ">=3.14"
 dependencies = [
@@ -16,8 +17,8 @@ dependencies = [
 ]
 
 [project.scripts]
-feste = "feste:main"
-feste-init-db = "feste:init_db"
+airona = "airona:main"
+airona-init-db = "airona:init_db"
 
 [build-system]
 requires = ["hatchling"]
