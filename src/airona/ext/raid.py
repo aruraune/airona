@@ -19,7 +19,7 @@ from hikari import (
     NotFoundError,
     StartedEvent,
     CustomEmoji,
-    InternalServerError
+    InternalServerError, Permissions
 )
 from hikari.impl import TextDisplayComponentBuilder, MessageActionRowBuilder, InteractiveButtonBuilder
 
@@ -47,7 +47,8 @@ plugin = GatewayPlugin(__name__)
 raid_group = plugin.include_slash_group(
     "raid",
     "Manage raids.",
-    autodefer=AutodeferMode.EPHEMERAL
+    autodefer=AutodeferMode.EPHEMERAL,
+    default_permissions=Permissions.CREATE_EVENTS | Permissions.MANAGE_EVENTS,
 )
 
 USER_ROLE_DPS = "dps"
