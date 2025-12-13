@@ -1,10 +1,6 @@
-# Feste-chan
+# Airona-chan
 
-A Discord bot that reminds you to do periodic tasks.
-
-## Official Instance
-
-[Add Feste-chan to a server!](https://discord.com/oauth2/authorize?client_id=1436467404401283121)
+A Discord bot that reminds you about raids.
 
 ## 🛠️ Self-hosting
 
@@ -12,8 +8,8 @@ Requires [uv](https://docs.astral.sh/uv/).
 
 1. Clone this repository.
     ```sh
-    git clone https://github.com/kuwifuwa/feste
-    cd feste
+    git clone https://github.com/aruraune/airona
+    cd airona
     ```
 1. Create `env/discord.toml` with your Discord bot token:
     ```toml
@@ -21,11 +17,8 @@ Requires [uv](https://docs.astral.sh/uv/).
     ```
 1. Create `env/config.toml`:
     ```toml
-    glue_interval = 30
-    subscribers_interval = 1800
-
     [db]
-    url = "sqlite:///save/feste.db"
+    url = "sqlite:///save/airona.db"
 
     [apscheduler]
     jobstore = "sqlite:///save/jobstore.db"
@@ -59,10 +52,10 @@ Requires [uv](https://docs.astral.sh/uv/).
    has_cleared = "👍"
    sign_off = "❌"
    ```
-    View [env.py](src/feste/env.py) for the full configuration schema.
+    View [env.py](src/airona/env.py) for the full configuration schema.
 1. Initialize the database:
     ```sh
     mkdir save
-    uv run feste-init-db
+    uv run airona-init-db
     ```
-1. Run with `uv run feste`.
+1. Run with `uv run airona`.

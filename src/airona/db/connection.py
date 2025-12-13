@@ -4,8 +4,8 @@ from typing import Final
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from feste.db import sqlite
-from feste.env import cfg
+from airona.db import sqlite
+from airona.env import cfg
 
 
 class DbConnection:

@@ -3,10 +3,10 @@ import logging
 from arc import GatewayClient
 from hikari import GatewayBot, Intents
 
-from feste.db.connection import db
-from feste.db.model import Base
-from feste.env import cfg, discord
-from feste.ext import glue, menu, ping, settings, subscribers, raid
+from airona.db.connection import db
+from airona.db.model import Base
+from airona.env import cfg, discord
+from airona.ext import settings, raid
 
 
 def main() -> None:
@@ -16,10 +16,6 @@ def main() -> None:
     bot = GatewayBot(discord().token, intents=Intents.GUILDS | Intents.GUILD_MEMBERS)
 
     client = GatewayClient(bot)
-    client.add_plugin(glue.plugin)
-    client.add_plugin(ping.plugin)
-    client.add_plugin(menu.plugin)
-    client.add_plugin(subscribers.plugin)
     client.add_plugin(settings.plugin)
     client.add_plugin(raid.plugin)
 

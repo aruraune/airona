@@ -2,7 +2,7 @@ from hikari import Snowflakeish
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from feste.db import model
+from airona.db import model
 
 
 def create_raid(

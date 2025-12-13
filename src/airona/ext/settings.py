@@ -1,10 +1,10 @@
 import arc
 from arc import AutodeferMode, GatewayContext, GatewayPlugin
-from hikari import ForbiddenError, MessageFlag, NotFoundError, Permissions
+from hikari import MessageFlag, Permissions
 
-from feste.db import model
-from feste.db.connection import db
-from feste.etc import error_handler
+from airona.db import model
+from airona.db.connection import db
+from airona.etc import error_handler
 
 plugin = GatewayPlugin(__name__)
 
@@ -26,13 +26,6 @@ async def _(ctx: GatewayContext) -> None:
     with db().sm.begin() as session:
         guild = session.get(model.Guild, ctx.guild_id)
         if guild is not None:
-            if guild.glue is not None:
-                try:
-                    await ctx.client.rest.delete_message(
-                        guild.glue.channel_id, guild.glue.message_id
-                    )
-                except ForbiddenError, NotFoundError:
-                    pass
             session.delete(guild)
     await ctx.respond(
         "\N{WHITE HEAVY CHECK MARK} All settings have been reset to default.",

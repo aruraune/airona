@@ -19,10 +19,10 @@ from hikari import (
 )
 from hikari.impl import TextDisplayComponentBuilder, MessageActionRowBuilder, InteractiveButtonBuilder
 
-from feste.db import model
-from feste.db.connection import db
-from feste.env import raid_cfg
-from feste.lib.raid import (
+from airona.db import model
+from airona.db.connection import db
+from airona.env import raid_cfg
+from airona.lib.raid import (
     create_raid,
     get_raid_by_message_id,
     get_all_raids,
@@ -32,7 +32,7 @@ from feste.lib.raid import (
     edit_raid_user,
     delete_raid_user_by_discord_id,
 )
-from feste.typing import Components
+from airona.typing import Components
 
 
 plugin = GatewayPlugin(__name__)
