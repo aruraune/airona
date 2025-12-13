@@ -705,16 +705,26 @@ async def _(event: ComponentInteractionCreateEvent):
 
 
 async def cleanup_deleted_raids():
+    to_be_deleted = []
+
     with db().sm.begin() as session:
         raids = get_all_raids(session)
 
         for raid in raids:
-            try:
-                await plugin.client.rest.fetch_message(raid.channel_id, raid.message_id)
-            except NotFoundError:
-                delete_raid_by_message_id(raid_scheduler, session, raid.guild_id, raid.message_id)
-            except ForbiddenError:
-                continue
+            to_be_deleted.append({
+                "channel_id": raid.guild_id,
+                "message_id": raid.message_id,
+                "guild_id": raid.guild_id,
+            })
+
+    for raid in to_be_deleted:
+        try:
+            await plugin.client.rest.fetch_message(raid["channel_id"], raid["message_id"])
+        except NotFoundError:
+            with db().sm.begin() as session:
+                delete_raid_by_message_id(raid_scheduler, session, raid["guild_id"], raid["message_id"])
+        except ForbiddenError:
+            continue
 
 
 async def deferred_raid_cleanup() -> None:
