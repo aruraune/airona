@@ -1,3 +1,9 @@
+from asyncio import Queue
+from datetime import UTC, datetime
+
+from apscheduler.jobstores.base import JobLookupError
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from apscheduler.triggers.date import DateTrigger
 from hikari import Snowflakeish
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -6,6 +12,7 @@ from airona.db import model
 
 
 def create_raid(
+    raid_scheduler: AsyncIOScheduler,
     session: Session,
     guild_id: Snowflakeish,
     channel_id: Snowflakeish,
@@ -13,8 +20,12 @@ def create_raid(
     host_mention: str,
     when: int,
     title: str | None,
-    index: int | None = None,
 ) -> model.Raid:
+    try:
+        dt = datetime.fromtimestamp(when, tz=UTC)
+        trigger = DateTrigger(run_date=dt)
+    except ValueError:
+        raise
     guild = session.get(model.Guild, guild_id) or model.Guild(id=guild_id)
     raid = model.Raid(
         guild_id=guild_id,
@@ -24,12 +35,17 @@ def create_raid(
         when=when,
         title=title,
     )
-    if index is None:
-        guild.raids.append(raid)
-    else:
-        guild.raids.insert(index, raid)
+    guild.raids.append(raid)
     session.add(guild)
     session.flush()
+    raid_scheduler.add_job(
+        id=f"{raid.id}",
+        replace_existing=True,
+        trigger=trigger,
+        coalesce=True,
+        func=put_raid,
+        args=(raid.id,)
+    )
     return raid
 
 
@@ -51,6 +67,7 @@ def get_all_raids(session: Session) -> list[model.Raid]:
 
 
 def delete_raid_by_message_id(
+    raid_scheduler: AsyncIOScheduler,
     session: Session,
     guild_id: Snowflakeish,
     message_id: Snowflakeish,
@@ -58,6 +75,10 @@ def delete_raid_by_message_id(
     raid = get_raid_by_message_id(session, guild_id, message_id)
     if raid is None:
         raise IndexError(f"Raid not registered.")
+    try:
+        raid_scheduler.remove_job(f"{raid.id}")
+    except JobLookupError:
+        pass
     session.delete(raid)
     return raid
 
@@ -120,3 +141,10 @@ def delete_raid_user_by_discord_id(
         raise IndexError(f"User not registered for raid {raid_id}")
     session.delete(user)
     return user
+
+
+raid_queue: Queue[int] = Queue()
+
+
+def put_raid(raid_id: int) -> None:
+    raid_queue.put_nowait(raid_id)

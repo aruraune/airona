@@ -43,7 +43,8 @@ def cfg() -> Config:
 class RaidConfig(BaseModel):
     raid_cleanup_interval: int
 
-    template: str
+    raid_message_template: str
+    raid_ping_template: str
 
     class Emoji(BaseModel):
         dps: str

@@ -1,6 +1,9 @@
 import arc
 import hikari
 import re
+
+from apscheduler.jobstores.base import JobLookupError
+from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.interval import IntervalTrigger
 from datetime import UTC
@@ -15,13 +18,14 @@ from hikari import (
     GuildMessageDeleteEvent,
     NotFoundError,
     StartedEvent,
-    CustomEmoji
+    CustomEmoji,
+    InternalServerError
 )
 from hikari.impl import TextDisplayComponentBuilder, MessageActionRowBuilder, InteractiveButtonBuilder
 
 from airona.db import model
 from airona.db.connection import db
-from airona.env import raid_cfg
+from airona.env import raid_cfg, cfg
 from airona.lib.raid import (
     create_raid,
     get_raid_by_message_id,
@@ -31,6 +35,7 @@ from airona.lib.raid import (
     get_raid_user_by_discord_id,
     edit_raid_user,
     delete_raid_user_by_discord_id,
+    raid_queue,
 )
 from airona.typing import Components
 
@@ -56,14 +61,19 @@ RAID_CLEARED = f"{RAID_PREFIX}:cleared"
 RAID_SIGNOFF = f"{RAID_PREFIX}:signoff"
 
 
+raid_scheduler = AsyncIOScheduler(
+    jobstores={"default": SQLAlchemyJobStore(cfg().apscheduler.jobstore)},
+    timezone=UTC
+)
+
+
 @raid_group.include
 @arc.slash_subcommand("create", "Create a new raid.")
 async def _(
     ctx: GatewayContext,
     host: Option[hikari.User, UserParams("the host of the raid.")],
-    when: Option[int, IntParams("the time when the raid will start (timestamp, use hammertime.cyou).")],
+    when: Option[int, IntParams("the time when the raid will start (timestamp in seconds, use hammertime.cyou).")],
     title: Option[str, StrParams("the title of the raid announcement (e.g. All raids, Light NM).")],
-    index: Option[int | None, IntParams("the index to insert the raid at.")] = None,
 ) -> None:
     if ctx.guild_id is None:
         return
@@ -87,14 +97,14 @@ async def _(
                 )
                 return
             create_raid(
+                raid_scheduler,
                 session,
                 ctx.guild_id,
                 ctx.channel_id,
                 message.id,
                 host.mention,
                 when,
-                title,
-                index)
+                title)
     except ValueError as e:
         await ctx.respond(f"\N{CROSS MARK} {e}", flags=MessageFlag.EPHEMERAL)
         return
@@ -134,12 +144,12 @@ def build_raid_message(
     host_name: str | None = None,
     host_uid: str | None = None,
 ) -> Components:
-    raid_template = raid_cfg()
+    raid_config = raid_cfg()
 
     users = users or []
 
-    def filter_users(users: list[model.RaidUser], role: str, has_cleared: bool) -> list[model.RaidUser]:
-        return list(filter(lambda u: u.role == role and (has_cleared is None or u.has_cleared == has_cleared), users))
+    def filter_users(usrlist: list[model.RaidUser], role: str, has_cleared: bool) -> list[model.RaidUser]:
+        return list(filter(lambda u: u.role == role and (has_cleared is None or u.has_cleared == has_cleared), usrlist))
 
     def format_user(u: model.RaidUser) -> str:
         return f"<@{u.discord_id}>"
@@ -157,28 +167,28 @@ def build_raid_message(
 
     dps_need_clear = " ".join(format_user(user) for user in filter_users(users, USER_ROLE_DPS, False))
     dps_cleared = " ".join(format_user(user) for user in filter_users(users, USER_ROLE_DPS, True))
-    dps_separator = raid_template.emoji.has_cleared if dps_cleared else ""
+    dps_separator = raid_config.emoji.has_cleared if dps_cleared else ""
     tank_need_clear = " ".join(format_user(user) for user in filter_users(users, USER_ROLE_TANK, False))
     tank_cleared = " ".join(format_user(user) for user in filter_users(users, USER_ROLE_TANK, True))
-    tank_separator = raid_template.emoji.has_cleared if tank_cleared else ""
+    tank_separator = raid_config.emoji.has_cleared if tank_cleared else ""
     support_need_clear = " ".join(format_user(user) for user in filter_users(users, USER_ROLE_SUPPORT, False))
     support_cleared = " ".join(format_user(user) for user in filter_users(users, USER_ROLE_SUPPORT, True))
-    support_separator = raid_template.emoji.has_cleared if support_cleared else ""
+    support_separator = raid_config.emoji.has_cleared if support_cleared else ""
 
     template_values: dict[str, object] = {
         "when": when,
         "title": title,
         "host_mention": host_mention,
-        "dps_emoji": raid_template.emoji.dps,
-        "tank_emoji": raid_template.emoji.tank,
-        "support_emoji": raid_template.emoji.support,
-        "has_cleared_emoji": raid_template.emoji.has_cleared,
+        "dps_emoji": raid_config.emoji.dps,
+        "tank_emoji": raid_config.emoji.tank,
+        "support_emoji": raid_config.emoji.support,
+        "has_cleared_emoji": raid_config.emoji.has_cleared,
         "dps_users": f"{dps_need_clear} {dps_separator} {dps_cleared}",
         "tank_users": f"{tank_need_clear} {tank_separator} {tank_cleared}",
         "support_users": f"{support_need_clear} {support_separator} {support_cleared}",
     }
 
-    message = raid_template.template.format_map(template_values)
+    message = raid_config.raid_message_template.format_map(template_values)
 
     components = [
         TextDisplayComponentBuilder(
@@ -188,30 +198,88 @@ def build_raid_message(
             components=[
                 InteractiveButtonBuilder(
                     custom_id=RAID_ROLE_DPS,
-                    emoji=convert_emoji(raid_template.emoji.dps),
+                    emoji=convert_emoji(raid_config.emoji.dps),
                     style=ButtonStyle.SECONDARY,
                 ),
                 InteractiveButtonBuilder(
                     custom_id=RAID_ROLE_TANK,
-                    emoji=convert_emoji(raid_template.emoji.tank),
+                    emoji=convert_emoji(raid_config.emoji.tank),
                     style=ButtonStyle.SECONDARY,
                 ),
                 InteractiveButtonBuilder(
                     custom_id=RAID_ROLE_SUPPORT,
-                    emoji=convert_emoji(raid_template.emoji.support),
+                    emoji=convert_emoji(raid_config.emoji.support),
                     style=ButtonStyle.SECONDARY,
                 ),
                 InteractiveButtonBuilder(
                     custom_id=RAID_CLEARED,
-                    emoji=convert_emoji(raid_template.emoji.has_cleared),
+                    emoji=convert_emoji(raid_config.emoji.has_cleared),
                     style=ButtonStyle.SECONDARY,
                 ),
                 InteractiveButtonBuilder(
                     custom_id=RAID_SIGNOFF,
-                    emoji=convert_emoji(raid_template.emoji.sign_off),
+                    emoji=convert_emoji(raid_config.emoji.sign_off),
                     style=ButtonStyle.SECONDARY,
                 ),
             ]
+        )
+    ]
+
+    return components
+
+
+def build_raid_ping(
+    guild_id: Snowflakeish,
+    channel_id: Snowflakeish,
+    message_id: Snowflakeish,
+    when: int,
+    title: str,
+    host_mention: str,
+    users: list[model.RaidUser] | None = None,
+    host_name: str | None = None,
+    host_uid: str | None = None,
+) -> Components:
+    raid_config = raid_cfg()
+
+    users = users or []
+
+    def filter_users(usrlist: list[model.RaidUser], role: str, has_cleared: bool) -> list[model.RaidUser]:
+        return list(filter(lambda u: u.role == role and (has_cleared is None or u.has_cleared == has_cleared), usrlist))
+
+    def format_user(u: model.RaidUser) -> str:
+        return f"<@{u.discord_id}>"
+
+    raid_users = " ".join(format_user(user) for user in users)
+    dps_need_clear = " ".join(format_user(user) for user in filter_users(users, USER_ROLE_DPS, False))
+    dps_cleared = " ".join(format_user(user) for user in filter_users(users, USER_ROLE_DPS, True))
+    dps_separator = raid_config.emoji.has_cleared if dps_cleared else ""
+    tank_need_clear = " ".join(format_user(user) for user in filter_users(users, USER_ROLE_TANK, False))
+    tank_cleared = " ".join(format_user(user) for user in filter_users(users, USER_ROLE_TANK, True))
+    tank_separator = raid_config.emoji.has_cleared if tank_cleared else ""
+    support_need_clear = " ".join(format_user(user) for user in filter_users(users, USER_ROLE_SUPPORT, False))
+    support_cleared = " ".join(format_user(user) for user in filter_users(users, USER_ROLE_SUPPORT, True))
+    support_separator = raid_config.emoji.has_cleared if support_cleared else ""
+
+    template_values: dict[str, object] = {
+        "when": when,
+        "title": title,
+        "host_mention": host_mention,
+        "dps_emoji": raid_config.emoji.dps,
+        "tank_emoji": raid_config.emoji.tank,
+        "support_emoji": raid_config.emoji.support,
+        "has_cleared_emoji": raid_config.emoji.has_cleared,
+        "dps_users": f"{dps_need_clear} {dps_separator} {dps_cleared}",
+        "tank_users": f"{tank_need_clear} {tank_separator} {tank_cleared}",
+        "support_users": f"{support_need_clear} {support_separator} {support_cleared}",
+        "users": raid_users,
+        "raid_message_link": f"https://discord.com/channels/{guild_id}/{channel_id}/{message_id}",
+    }
+
+    message = raid_config.raid_ping_template.format_map(template_values)
+
+    components = [
+        TextDisplayComponentBuilder(
+            content=message
         )
     ]
 
@@ -298,21 +366,57 @@ async def cleanup_deleted_raids():
             try:
                 await plugin.client.rest.fetch_message(raid.channel_id, raid.message_id)
             except NotFoundError:
-                delete_raid_by_message_id(session, raid.guild_id, raid.message_id)
+                delete_raid_by_message_id(raid_scheduler, session, raid.guild_id, raid.message_id)
             except ForbiddenError:
                 continue
 
 
-async def do_deferred() -> None:
+async def deferred_raid_cleanup() -> None:
     await cleanup_deleted_raids()
 
 
-scheduler = AsyncIOScheduler(timezone=UTC)
+async def raid_ping(raid_id: int) -> None:
+    with db().sm.begin() as session:
+        try:
+            # TODO: Should we just delete raids after the ping?
+            raid_scheduler.remove_job(f"{raid_id}")
+        except JobLookupError:
+            pass
+        raid = session.get(model.Raid, raid_id)
+        if raid is None:
+            return
+        try:
+            # TODO: Obtain host name and uid
+            await plugin.client.rest.create_message(
+                raid.channel_id,
+                components=build_raid_ping(
+                    raid.guild_id,
+                    raid.channel_id,
+                    raid.message_id,
+                    raid.when,
+                    raid.title,
+                    raid.host_mention,
+                    raid.users
+                ),
+            )
+        except (ForbiddenError, NotFoundError):
+            delete_raid_by_message_id(raid_scheduler, session, raid.guild_id, raid.message_id)
+            return
+        except InternalServerError:
+            return
+
+
+async def raid_ping_loop() -> None:
+    while True:
+        raid_id = await raid_queue.get()
+        plugin.client.create_task(raid_ping(raid_id))
 
 
 @plugin.listen()
 async def _(_: StartedEvent) -> None:
     await cleanup_deleted_raids()
 
-    scheduler.add_job(do_deferred, IntervalTrigger(seconds=raid_cfg().raid_cleanup_interval))
-    scheduler.start()
+    raid_scheduler.add_job(deferred_raid_cleanup, IntervalTrigger(seconds=raid_cfg().raid_cleanup_interval))
+    raid_scheduler.start()
+
+    plugin.client.create_task(raid_ping_loop())
