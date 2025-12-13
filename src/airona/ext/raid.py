@@ -686,7 +686,6 @@ async def deferred_raid_cleanup() -> None:
 async def raid_ping(raid_id: int) -> None:
     with db().sm.begin() as session:
         try:
-            # TODO: Should we just delete raids after the ping?
             raid_scheduler.remove_job(f"{raid_id}")
         except JobLookupError:
             pass
