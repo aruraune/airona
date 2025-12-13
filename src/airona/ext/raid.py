@@ -31,7 +31,6 @@ from airona.lib.raid import (
     get_raid_by_raid_id,
     get_raid_by_message_id,
     get_all_raids,
-    get_all_raids_by_guild_id,
     delete_raid_by_message_id,
     create_raid_user,
     get_raid_user_by_discord_id,
@@ -162,48 +161,21 @@ async def _(
         flags=MessageFlag.EPHEMERAL,
     )
 
-
-@raid_group.include
-@arc.slash_subcommand("list", "List all raids.")
-async def _(
-    ctx: GatewayContext,
-) -> None:
-    if ctx.guild_id is None:
-        return
-    try:
-        raid_list_message = None
-
-        with db().sm.begin() as session:
-            raid_list = get_all_raids_by_guild_id(session, ctx.guild_id)
-
-            if len(raid_list) > 0:
-                raid_list_message = "\n".join(f"{raid.id}: {raid.title} https://discord.com/channels/{raid.guild_id}/{raid.channel_id}/{raid.message_id}" for raid in raid_list)
-
-        if raid_list_message is not None:
-            await ctx.respond(
-                content=raid_list_message,
-                flags = MessageFlag.EPHEMERAL,
-            )
-        else:
-            await ctx.respond(
-                content="No raids scheduled.",
-                flags=MessageFlag.EPHEMERAL,
-            )
-    except ValueError as e:
-        await ctx.respond(f"\N{CROSS MARK} {e}", flags=MessageFlag.EPHEMERAL)
-        return
-
-
 @raid_group.include
 @arc.slash_subcommand("add", "Add a user to a raid.")
 async def _(
     ctx: GatewayContext,
-    raid_id: Option[int, IntParams("the id of the raid.")],
+    message_id: Option[str, StrParams("the id of the raid.")],
     user: Option[hikari.User, UserParams("the user to add.")],
     role: Option[str, StrParams("the role of the user (dps, tank, support).", choices=[USER_ROLE_DPS, USER_ROLE_TANK, USER_ROLE_SUPPORT])],
     has_cleared: Option[bool, BoolParams("whether the user has already cleared the raid.")],
 ) -> None:
     if ctx.guild_id is None:
+        return
+    try:
+        message_id: int = int(message_id)
+    except ValueError:
+        await ctx.respond("\N{CROSS MARK} Invalid `message_id`.", flags=MessageFlag.EPHEMERAL)
         return
     if role not in [USER_ROLE_DPS, USER_ROLE_TANK, USER_ROLE_SUPPORT]:
         await ctx.respond(
@@ -213,7 +185,7 @@ async def _(
         return
     try:
         with db().sm.begin() as session:
-            raid = get_raid_by_raid_id(session, raid_id)
+            raid = get_raid_by_message_id(session, ctx.guild_id, message_id)
             raid_id = None
 
             if raid is not None:
@@ -246,19 +218,26 @@ async def _(
 @arc.slash_subcommand("remove", "Remove a user from a raid.")
 async def _(
     ctx: GatewayContext,
-    raid_id: Option[int, IntParams("the id of the raid.")],
+    message_id: Option[str, StrParams("the id of the raid.")],
     user: Option[hikari.User, UserParams("the user to add.")],
     reason: Option[str, StrParams("tell the user why you are removing them.")],
 ) -> None:
     if ctx.guild_id is None:
         return
     try:
+        message_id: int = int(message_id)
+    except ValueError:
+        await ctx.respond("\N{CROSS MARK} Invalid `message_id`.", flags=MessageFlag.EPHEMERAL)
+        return
+    try:
         raid_user_remove_response = None
 
         with db().sm.begin() as session:
-            raid = get_raid_by_raid_id(session, raid_id)
+            raid = get_raid_by_message_id(session, ctx.guild_id, message_id)
+            raid_id = None
 
             if raid is not None:
+                raid_id = raid.id
                 raid_user = get_raid_user_by_discord_id(session, raid.id, user.id)
 
                 if raid_user is None:
@@ -290,7 +269,8 @@ async def _(
             )
             return
 
-        await update_raid_message(raid_id)
+        if raid_id is not None:
+            await update_raid_message(raid_id)
 
         try:
             dm_channel = await plugin.client.rest.create_dm_channel(user.id)
@@ -338,7 +318,7 @@ async def update_raid_message(
         await plugin.client.rest.edit_message(
             channel_id,
             message_id,
-            raid_message
+            components=raid_message
         )
     except NotFoundError:
         with db().sm.begin() as session:

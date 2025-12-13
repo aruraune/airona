@@ -84,16 +84,6 @@ def get_all_raids(session: Session) -> list[model.Raid]:
     return list(session.scalars(select(model.Raid)))
 
 
-def get_all_raids_by_guild_id(session: Session, guild_id: Snowflakeish) -> list[model.Raid]:
-    return list(
-        session.scalars(
-            select(model.Raid).where(
-                model.Raid.guild_id == guild_id
-            )
-        )
-    )
-
-
 def delete_raid_by_message_id(
     raid_scheduler: AsyncIOScheduler,
     session: Session,
