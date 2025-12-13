@@ -764,7 +764,7 @@ async def raid_ping(raid_id: int) -> None:
             raid.host_username,
             raid.host_uid,
         )
-        user_mentions = [raid.host_discord_id] + [user.discord_id for user in raid.users],
+        user_mentions = [raid.host_discord_id] + [user.discord_id for user in raid.users]
     try:
         await plugin.client.rest.create_message(
             channel=channel_id,
