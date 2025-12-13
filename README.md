@@ -30,9 +30,9 @@ Requires [uv](https://docs.astral.sh/uv/).
    ```toml
    raid_cleanup_interval = 30
    
-   template = """
+   raid_message_template = """
    {title}
-   Apply on {host_mention} <t:{when}:R> @ <t:{when}:F>
+   Apply on {host_mention} {host_username} #{host_uid} <t:{when}:R> @ <t:{when}:F>
    
    {dps_emoji} {dps_users}
    
@@ -43,7 +43,19 @@ Requires [uv](https://docs.astral.sh/uv/).
    Interested users are shown in the order they expressed interest.
    The Leader may choose players at their own discretion.
    PRESS YOUR ROLE BELOW TO SHOW YOUR INTEREST.
-   Press {has_cleared_emoji} if you have already cleared."""
+   Press {has_cleared_emoji} if you have already cleared.
+   
+   View {raid_message_link} to use the buttons."""
+   
+   raid_ping_template = """
+   {title} by {host_mention} {host_username} #{host_uid}: {raid_message_link}
+   Pings: {users}
+   """
+   
+   raid_removal_dm_template = """
+   You were removed from the raid {title} scheduled for <t:{when}:F>.
+   Reason: {raid_removal_reason}
+   """
    
    [emoji]
    dps = "<:bpsr_dps:1449010393916903586>"
