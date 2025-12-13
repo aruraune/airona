@@ -13,7 +13,7 @@ def main() -> None:
     logging.getLogger("apscheduler").setLevel(cfg().apscheduler.log_level)
     logging.getLogger("sqlalchemy.engine").setLevel(cfg().sqlalchemy.log_level)
 
-    bot = GatewayBot(discord().token, intents=Intents.GUILDS | Intents.GUILD_MEMBERS)
+    bot = GatewayBot(discord().token, intents=Intents.NONE)
 
     client = GatewayClient(bot)
     client.add_plugin(settings.plugin)
