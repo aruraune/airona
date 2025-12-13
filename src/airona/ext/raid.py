@@ -16,7 +16,6 @@ from hikari import (
     ComponentInteractionCreateEvent,
     ResponseType,
     Snowflakeish,
-    GuildMessageDeleteEvent,
     NotFoundError,
     StartedEvent,
     CustomEmoji,
