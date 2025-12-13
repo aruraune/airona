@@ -92,53 +92,53 @@ async def _(
         )
         return
     try:
+        try:
+            message = await plugin.client.rest.create_message(
+                ctx.channel_id,
+                components=build_raid_message(
+                    when,
+                    title,
+                    host.id,
+                    host_name=ingame_host_username,
+                    host_uid=ingame_host_uid,
+                    guild_id=ctx.guild_id,
+                    channel_id=ctx.channel_id,
+                )
+            )
+            await plugin.client.rest.edit_message(
+                ctx.channel_id,
+                message.id,
+                components=build_raid_message(
+                    when,
+                    title,
+                    host.id,
+                    host_name=ingame_host_username,
+                    host_uid=ingame_host_uid,
+                    guild_id=ctx.guild_id,
+                    channel_id=ctx.channel_id,
+                    message_id=message.id,
+                )
+            )
+            thread = await plugin.client.rest.create_message_thread(
+                ctx.channel_id,
+                message.id,
+                f"{title} @ {datetime.fromtimestamp(when, UTC).strftime('%Y-%m-%d %H:%M')} UTC"
+            )
+            await plugin.client.rest.create_message(
+                thread.id,
+                components=build_initial_thread_message(
+                    ctx.guild_id,
+                    ctx.channel_id,
+                    message.id,
+                )
+            )
+        except ForbiddenError:
+            await ctx.respond(
+                "\N{CROSS MARK} Missing `Send Messages` permission.",
+                flags=MessageFlag.EPHEMERAL,
+            )
+            return
         with db().sm.begin() as session:
-            try:
-                message = await plugin.client.rest.create_message(
-                    ctx.channel_id,
-                    components=build_raid_message(
-                        when,
-                        title,
-                        host.id,
-                        host_name=ingame_host_username,
-                        host_uid=ingame_host_uid,
-                        guild_id=ctx.guild_id,
-                        channel_id=ctx.channel_id,
-                    )
-                )
-                await plugin.client.rest.edit_message(
-                    ctx.channel_id,
-                    message.id,
-                    components=build_raid_message(
-                        when,
-                        title,
-                        host.id,
-                        host_name=ingame_host_username,
-                        host_uid=ingame_host_uid,
-                        guild_id=ctx.guild_id,
-                        channel_id=ctx.channel_id,
-                        message_id=message.id,
-                    )
-                )
-                thread = await plugin.client.rest.create_message_thread(
-                    ctx.channel_id,
-                    message.id,
-                    f"{title} @ {datetime.fromtimestamp(when, UTC).strftime('%Y-%m-%d %H:%M')} UTC"
-                )
-                await plugin.client.rest.create_message(
-                    thread.id,
-                    components=build_initial_thread_message(
-                        ctx.guild_id,
-                        ctx.channel_id,
-                        message.id,
-                    )
-                )
-            except ForbiddenError:
-                await ctx.respond(
-                    "\N{CROSS MARK} Missing `Send Messages` permission.",
-                    flags=MessageFlag.EPHEMERAL,
-                )
-                return
             try:
                 create_raid(
                     raid_scheduler,
@@ -171,20 +171,24 @@ async def _(
     if ctx.guild_id is None:
         return
     try:
+        raid_list_message = None
+
         with db().sm.begin() as session:
             raid_list = get_all_raids_by_guild_id(session, ctx.guild_id)
 
             if len(raid_list) > 0:
-                await ctx.respond(
-                    content="\n".join(f"{raid.id}: {raid.title} https://discord.com/channels/{raid.guild_id}/{raid.channel_id}/{raid.message_id}" for raid in raid_list),
-                    flags = MessageFlag.EPHEMERAL,
-                )
-            else:
-                await ctx.respond(
-                    content="No raids scheduled.",
-                    flags=MessageFlag.EPHEMERAL,
-                )
-                return
+                raid_list_message = "\n".join(f"{raid.id}: {raid.title} https://discord.com/channels/{raid.guild_id}/{raid.channel_id}/{raid.message_id}" for raid in raid_list)
+
+        if raid_list_message is not None:
+            await ctx.respond(
+                content=raid_list_message,
+                flags = MessageFlag.EPHEMERAL,
+            )
+        else:
+            await ctx.respond(
+                content="No raids scheduled.",
+                flags=MessageFlag.EPHEMERAL,
+            )
     except ValueError as e:
         await ctx.respond(f"\N{CROSS MARK} {e}", flags=MessageFlag.EPHEMERAL)
         return
@@ -210,22 +214,25 @@ async def _(
     try:
         with db().sm.begin() as session:
             raid = get_raid_by_raid_id(session, raid_id)
+            raid_id = None
 
-            if raid is None:
-                await ctx.respond(
-                    "\N{CROSS MARK} Raid does not exist.",
-                    flags=MessageFlag.EPHEMERAL,
-                )
-                return
+            if raid is not None:
+                raid_id = raid.id
 
-            raid_user = get_raid_user_by_discord_id(session, raid.id, user.id)
+                raid_user = get_raid_user_by_discord_id(session, raid.id, user.id)
 
-            if raid_user is not None:
-                edit_raid_user(session, raid.id, user.id, role=role, has_cleared=has_cleared)
-            else:
-                create_raid_user(session, raid.id, user.id, role=role, has_cleared=has_cleared)
+                if raid_user is not None:
+                    edit_raid_user(session, raid.id, user.id, role=role, has_cleared=has_cleared)
+                else:
+                    create_raid_user(session, raid.id, user.id, role=role, has_cleared=has_cleared)
 
-            await update_raid_message(session, raid.id)
+        if raid_id is not None:
+            await update_raid_message(raid_id)
+        else:
+            await ctx.respond(
+                "\N{CROSS MARK} Raid does not exist.",
+                flags=MessageFlag.EPHEMERAL,
+            )
     except ValueError as e:
         await ctx.respond(f"\N{CROSS MARK} {e}", flags=MessageFlag.EPHEMERAL)
         return
@@ -246,50 +253,55 @@ async def _(
     if ctx.guild_id is None:
         return
     try:
+        raid_user_remove_response = None
+
         with db().sm.begin() as session:
             raid = get_raid_by_raid_id(session, raid_id)
 
-            if raid is None:
-                await ctx.respond(
-                    "\N{CROSS MARK} Raid does not exist.",
-                    flags=MessageFlag.EPHEMERAL,
-                )
-                return
+            if raid is not None:
+                raid_user = get_raid_user_by_discord_id(session, raid.id, user.id)
 
-            raid_user = get_raid_user_by_discord_id(session, raid.id, user.id)
-
-            if raid_user is None:
-                await ctx.respond(
-                    "\N{CROSS MARK} User is not part of this raid.",
-                    flags=MessageFlag.EPHEMERAL,
-                )
-                return
-
-            delete_raid_user_by_discord_id(session, raid.id, user.id)
-
-            await update_raid_message(session, raid.id)
-
-            try:
-                dm_channel = await plugin.client.rest.create_dm_channel(user.id)
-
-                await plugin.client.rest.create_message(
-                    dm_channel.id,
-                    components=build_raid_removal_message(
-                        raid.guild_id,
-                        raid.channel_id,
-                        raid.message_id,
-                        reason,
-                        raid.when,
-                        raid.title,
-                        raid.id,
-                        raid.users,
-                        raid.host_username,
-                        raid.host_uid,
+                if raid_user is None:
+                    await ctx.respond(
+                        "\N{CROSS MARK} User is not part of this raid.",
+                        flags=MessageFlag.EPHEMERAL,
                     )
+                    return
+
+                delete_raid_user_by_discord_id(session, raid.id, user.id)
+
+                raid_user_remove_response = build_raid_removal_message(
+                    raid.guild_id,
+                    raid.channel_id,
+                    raid.message_id,
+                    reason,
+                    raid.when,
+                    raid.title,
+                    raid.id,
+                    raid.users,
+                    raid.host_username,
+                    raid.host_uid,
                 )
-            except Exception as e:
-                print(f"Failed to send DM to {user.id}: {e}")
-                pass
+
+        if raid_user_remove_response is None:
+            await ctx.respond(
+                "\N{CROSS MARK} Raid does not exist.",
+                flags=MessageFlag.EPHEMERAL,
+            )
+            return
+
+        await update_raid_message(raid_id)
+
+        try:
+            dm_channel = await plugin.client.rest.create_dm_channel(user.id)
+
+            await plugin.client.rest.create_message(
+                dm_channel.id,
+                components=raid_user_remove_response,
+            )
+        except Exception as e:
+            print(f"Failed to send DM to {user.id}: {e}")
+            pass
     except ValueError as e:
         await ctx.respond(f"\N{CROSS MARK} {e}", flags=MessageFlag.EPHEMERAL)
         return
@@ -300,32 +312,37 @@ async def _(
 
 
 async def update_raid_message(
-    session: db.Session,
     raid_id: int,
 ):
-    raid = get_raid_by_raid_id(session, raid_id)
+    with db().sm.begin() as session:
+        raid = get_raid_by_raid_id(session, raid_id)
 
-    if raid is None:
-        return
+        if raid is None:
+            return
+
+        channel_id = raid.channel_id
+        message_id = raid.message_id
+        raid_message = build_raid_message(
+            raid.when,
+            raid.title,
+            raid.host_discord_id,
+            raid.users,
+            raid.host_username,
+            raid.host_uid,
+            raid.guild_id,
+            raid.channel_id,
+            raid.message_id,
+        )
 
     try:
         await plugin.client.rest.edit_message(
-            raid.channel_id,
-            raid.message_id,
-            components=build_raid_message(
-                raid.when,
-                raid.title,
-                raid.host_discord_id,
-                raid.users,
-                raid.host_username,
-                raid.host_uid,
-                raid.guild_id,
-                raid.channel_id,
-                raid.message_id,
-            )
+            channel_id,
+            message_id,
+            raid_message
         )
     except NotFoundError:
-        delete_raid_by_message_id(raid_scheduler, session, raid.guild_id, raid.message_id)
+        with db().sm.begin() as session:
+            delete_raid_by_message_id(raid_scheduler, session, raid.guild_id, raid.message_id)
         return
 
 
@@ -643,7 +660,9 @@ async def _(event: ComponentInteractionCreateEvent):
     if itx.message is None:
         return
 
-    with (db().sm.begin() as session):
+    error = None
+
+    with db().sm.begin() as session:
         raid = get_raid_by_message_id(session, itx.guild_id, itx.message.id)
 
         if raid is None:
@@ -656,12 +675,7 @@ async def _(event: ComponentInteractionCreateEvent):
                 if itx.custom_id.startswith(RAID_ROLE_PREFIX):
                     create_raid_user(session, raid.id, itx.member.id, itx.custom_id[len(RAID_ROLE_PREFIX) + 1:], False)
                 else:
-                    await itx.create_initial_response(
-                        ResponseType.MESSAGE_CREATE,
-                        "\N{CROSS MARK} Please select a role first!",
-                        flags=MessageFlag.EPHEMERAL,
-                    )
-                    return
+                    error = "\N{CROSS MARK} Please select a role first!"
             else:
                 if itx.custom_id.startswith(RAID_ROLE_PREFIX):
                     edit_raid_user(session, raid.id, user.discord_id, role=itx.custom_id[len(RAID_ROLE_PREFIX) + 1:])
@@ -670,38 +684,37 @@ async def _(event: ComponentInteractionCreateEvent):
                 elif itx.custom_id == RAID_SIGNOFF:
                     delete_raid_user_by_discord_id(session, raid.id, user.discord_id)
                 else:
-                    await itx.create_initial_response(
-                        ResponseType.MESSAGE_CREATE,
-                        "\N{CROSS MARK} Invalid action!",
-                        flags=MessageFlag.EPHEMERAL,
-                    )
-                    return
-            await itx.create_initial_response(
-                ResponseType.MESSAGE_UPDATE,
-                components=build_raid_message(
-                    raid.when,
-                    raid.title,
-                    raid.host_discord_id,
-                    raid.users,
-                    raid.host_username,
-                    raid.host_uid,
-                    raid.guild_id,
-                    raid.channel_id,
-                    raid.message_id,
-                ),
-            )
+                    error = "\N{CROSS MARK} Invalid action!",
         except ValueError as e:
-            await itx.create_initial_response(
-                ResponseType.MESSAGE_CREATE,
-                f"\N{CROSS MARK} {e}",
-                flags=MessageFlag.EPHEMERAL,
-            )
+            print(f"Failed to update raid user: {e}")
+            return
         except IndexError as e:
-            await itx.create_initial_response(
-                ResponseType.MESSAGE_CREATE,
-                f"\N{CROSS MARK} {e}",
-                flags=MessageFlag.EPHEMERAL,
-            )
+            print(f"Failed to update raid user: {e}")
+            return
+        raid_message = build_raid_message(
+            raid.when,
+            raid.title,
+            raid.host_discord_id,
+            raid.users,
+            raid.host_username,
+            raid.host_uid,
+            raid.guild_id,
+            raid.channel_id,
+            raid.message_id,
+        )
+
+    if error is not None:
+        await itx.create_initial_response(
+            ResponseType.MESSAGE_CREATE,
+            content=error,
+            flags=MessageFlag.EPHEMERAL,
+        )
+        return
+
+    await itx.create_initial_response(
+        ResponseType.MESSAGE_UPDATE,
+        components=raid_message,
+    )
 
 
 async def cleanup_deleted_raids():
@@ -712,7 +725,7 @@ async def cleanup_deleted_raids():
 
         for raid in raids:
             to_be_deleted.append({
-                "channel_id": raid.guild_id,
+                "channel_id": raid.channel_id,
                 "message_id": raid.message_id,
                 "guild_id": raid.guild_id,
             })
@@ -727,40 +740,43 @@ async def cleanup_deleted_raids():
             continue
 
 
-async def deferred_raid_cleanup() -> None:
-    await cleanup_deleted_raids()
-
-
 async def raid_ping(raid_id: int) -> None:
     with db().sm.begin() as session:
         try:
             raid_scheduler.remove_job(f"{raid_id}")
         except JobLookupError:
             pass
+
         raid = session.get(model.Raid, raid_id)
+
         if raid is None:
             return
-        try:
-            await plugin.client.rest.create_message(
-                raid.channel_id,
-                components=build_raid_ping(
-                    raid.guild_id,
-                    raid.channel_id,
-                    raid.message_id,
-                    raid.when,
-                    raid.title,
-                    raid.host_discord_id,
-                    raid.users,
-                    raid.host_username,
-                    raid.host_uid,
-                ),
-                user_mentions=[raid.host_discord_id] + [user.discord_id for user in raid.users],
-            )
-        except (ForbiddenError, NotFoundError):
+
+        channel_id = raid.channel_id
+        components = build_raid_ping(
+            raid.guild_id,
+            raid.channel_id,
+            raid.message_id,
+            raid.when,
+            raid.title,
+            raid.host_discord_id,
+            raid.users,
+            raid.host_username,
+            raid.host_uid,
+        )
+        user_mentions = [raid.host_discord_id] + [user.discord_id for user in raid.users],
+    try:
+        await plugin.client.rest.create_message(
+            channel=channel_id,
+            components=components,
+            user_mentions=user_mentions,
+        )
+    except (ForbiddenError, NotFoundError):
+        with db().sm.begin() as session:
             delete_raid_by_message_id(raid_scheduler, session, raid.guild_id, raid.message_id)
-            return
-        except InternalServerError:
-            return
+        return
+    except InternalServerError:
+        return
 
 
 async def raid_ping_loop() -> None:
@@ -774,7 +790,7 @@ async def _(_: StartedEvent) -> None:
     await cleanup_deleted_raids()
 
     raid_scheduler.add_job(
-        deferred_raid_cleanup,
+        cleanup_deleted_raids,
         IntervalTrigger(seconds=raid_cfg().raid_cleanup_interval),
         jobstore="memory"
     )
