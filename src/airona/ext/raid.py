@@ -3,6 +3,7 @@ import hikari
 import re
 
 from apscheduler.jobstores.base import JobLookupError
+from apscheduler.jobstores.memory import MemoryJobStore
 from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.interval import IntervalTrigger
@@ -65,7 +66,10 @@ RAID_SIGNOFF = f"{RAID_PREFIX}:signoff"
 
 
 raid_scheduler = AsyncIOScheduler(
-    jobstores={"default": SQLAlchemyJobStore(cfg().apscheduler.jobstore)},
+    jobstores={
+        "default": SQLAlchemyJobStore(cfg().apscheduler.jobstore),
+        "memory": MemoryJobStore()
+    },
     timezone=UTC
 )
 
@@ -754,7 +758,12 @@ async def raid_ping_loop() -> None:
 async def _(_: StartedEvent) -> None:
     await cleanup_deleted_raids()
 
-    raid_scheduler.add_job(deferred_raid_cleanup, IntervalTrigger(seconds=raid_cfg().raid_cleanup_interval))
+    raid_scheduler.add_job(
+        deferred_raid_cleanup,
+        IntervalTrigger(seconds=raid_cfg().raid_cleanup_interval),
+        jobstore="memory"
+    )
+
     raid_scheduler.start()
 
     plugin.client.create_task(raid_ping_loop())
