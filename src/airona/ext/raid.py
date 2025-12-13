@@ -75,6 +75,11 @@ async def _(
                     ctx.channel_id,
                     components=build_raid_message(when, title, host.mention)
                 )
+                await plugin.client.rest.create_message_thread(
+                    ctx.channel_id,
+                    message.id,
+                    f"{title}"
+                )
             except ForbiddenError:
                 await ctx.respond(
                     "\N{CROSS MARK} Missing `Send Messages` permission.",
