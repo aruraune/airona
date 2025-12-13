@@ -173,10 +173,18 @@ async def _(
     try:
         with db().sm.begin() as session:
             raid_list = get_all_raids_by_guild_id(session, ctx.guild_id)
-            await ctx.respond(
-                content="\n".join(f"{raid.id}: {raid.title} https://discord.com/channels/{raid.guild_id}/{raid.channel_id}/{raid.message_id}" for raid in raid_list),
-                flags = MessageFlag.EPHEMERAL,
-            )
+
+            if len(raid_list) > 0:
+                await ctx.respond(
+                    content="\n".join(f"{raid.id}: {raid.title} https://discord.com/channels/{raid.guild_id}/{raid.channel_id}/{raid.message_id}" for raid in raid_list),
+                    flags = MessageFlag.EPHEMERAL,
+                )
+            else:
+                await ctx.respond(
+                    content="No raids scheduled.",
+                    flags=MessageFlag.EPHEMERAL,
+                )
+                return
     except ValueError as e:
         await ctx.respond(f"\N{CROSS MARK} {e}", flags=MessageFlag.EPHEMERAL)
         return
