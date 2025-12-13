@@ -34,7 +34,7 @@ class Raid(Base):
     channel_id: Mapped[int] = mapped_column()
     message_id: Mapped[int] = mapped_column()
 
-    host_mention: Mapped[str] = mapped_column()
+    host_discord_id: Mapped[int] = mapped_column()
     host_username: Mapped[str] = mapped_column()
     host_uid: Mapped[str] = mapped_column()
     when: Mapped[int] = mapped_column()

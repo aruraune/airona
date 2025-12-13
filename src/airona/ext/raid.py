@@ -100,7 +100,7 @@ async def _(
                     components=build_raid_message(
                         when,
                         title,
-                        host.mention,
+                        host.id,
                         host_name=ingame_host_username,
                         host_uid=ingame_host_uid,
                         guild_id=ctx.guild_id,
@@ -113,7 +113,7 @@ async def _(
                     components=build_raid_message(
                         when,
                         title,
-                        host.mention,
+                        host.id,
                         host_name=ingame_host_username,
                         host_uid=ingame_host_uid,
                         guild_id=ctx.guild_id,
@@ -147,7 +147,7 @@ async def _(
                     ctx.guild_id,
                     ctx.channel_id,
                     message.id,
-                    host.mention,
+                    host.id,
                     ingame_host_username,
                     ingame_host_uid,
                     when,
@@ -274,7 +274,7 @@ async def _(
                         reason,
                         raid.when,
                         raid.title,
-                        raid.host_mention,
+                        raid.id,
                         raid.users,
                         raid.host_username,
                         raid.host_uid,
@@ -308,7 +308,7 @@ async def update_raid_message(
             components=build_raid_message(
                 raid.when,
                 raid.title,
-                raid.host_mention,
+                raid.host_discord_id,
                 raid.users,
                 raid.host_username,
                 raid.host_uid,
@@ -325,7 +325,7 @@ async def update_raid_message(
 def build_raid_message(
     when: int,
     title: str,
-    host_mention: str,
+    host_discord_id: int,
     users: list[model.RaidUser] | None = None,
     host_name: str | None = None,
     host_uid: str | None = None,
@@ -385,7 +385,7 @@ def build_raid_message(
     template_values: dict[str, object] = {
         "when": when,
         "title": title,
-        "host_mention": host_mention,
+        "host_mention": f"<@{host_discord_id}>",
         "host_username": host_name,
         "host_uid": host_uid,
         "dps_emoji": raid_config.emoji.dps,
@@ -453,7 +453,7 @@ def build_raid_ping(
     message_id: Snowflakeish,
     when: int,
     title: str,
-    host_mention: str,
+    host_discord_id: int,
     users: list[model.RaidUser] | None = None,
     host_name: str | None = None,
     host_uid: str | None = None,
@@ -495,7 +495,7 @@ def build_raid_ping(
     template_values: dict[str, object] = {
         "when": when,
         "title": title,
-        "host_mention": host_mention,
+        "host_mention": f"<@{host_discord_id}>",
         "host_username": host_name,
         "host_uid": host_uid,
         "dps_emoji": raid_config.emoji.dps,
@@ -532,7 +532,7 @@ def build_raid_removal_message(
     raid_removal_reason: str,
     when: int,
     title: str,
-    host_mention: str,
+    host_discord_id: int,
     users: list[model.RaidUser] | None = None,
     host_name: str | None = None,
     host_uid: str | None = None,
@@ -574,7 +574,7 @@ def build_raid_removal_message(
     template_values: dict[str, object] = {
         "when": when,
         "title": title,
-        "host_mention": host_mention,
+        "host_mention": f"<@{host_discord_id}>",
         "host_username": host_name,
         "host_uid": host_uid,
         "dps_emoji": raid_config.emoji.dps,
@@ -674,7 +674,7 @@ async def _(event: ComponentInteractionCreateEvent):
                 components=build_raid_message(
                     raid.when,
                     raid.title,
-                    raid.host_mention,
+                    raid.host_discord_id,
                     raid.users,
                     raid.host_username,
                     raid.host_uid,
@@ -732,11 +732,12 @@ async def raid_ping(raid_id: int) -> None:
                     raid.message_id,
                     raid.when,
                     raid.title,
-                    raid.host_mention,
+                    raid.host_discord_id,
                     raid.users,
                     raid.host_username,
                     raid.host_uid,
                 ),
+                user_mentions=[raid.host_discord_id] + [user.discord_id for user in raid.users],
             )
         except (ForbiddenError, NotFoundError):
             delete_raid_by_message_id(raid_scheduler, session, raid.guild_id, raid.message_id)
