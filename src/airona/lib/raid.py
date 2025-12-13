@@ -9,6 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from airona.db import model
+from airona.env import raid_cfg
 
 
 def create_raid(
@@ -47,6 +48,7 @@ def create_raid(
         replace_existing=True,
         trigger=trigger,
         coalesce=True,
+        misfire_grace_time=raid_cfg().raid_misfire_grace_time,
         func=put_raid,
         args=(raid.id,)
     )
