@@ -45,6 +45,7 @@ class RaidConfig(BaseModel):
 
     raid_message_template: str
     raid_ping_template: str
+    raid_removal_dm_template: str
 
     class Emoji(BaseModel):
         dps: str

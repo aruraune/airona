@@ -18,6 +18,8 @@ def create_raid(
     channel_id: Snowflakeish,
     message_id: Snowflakeish | None,
     host_mention: str,
+    host_username: str,
+    host_uid: str,
     when: int,
     title: str | None,
 ) -> model.Raid:
@@ -32,6 +34,8 @@ def create_raid(
         channel_id=channel_id,
         message_id=message_id,
         host_mention=host_mention,
+        host_username=host_username,
+        host_uid=host_uid,
         when=when,
         title=title,
     )
@@ -45,6 +49,18 @@ def create_raid(
         coalesce=True,
         func=put_raid,
         args=(raid.id,)
+    )
+    return raid
+
+
+def get_raid_by_raid_id(
+    session: Session,
+    raid_id: int,
+) -> model.Raid | None:
+    raid = session.scalar(
+        select(model.Raid).where(
+            model.Raid.id == raid_id
+        )
     )
     return raid
 
@@ -64,6 +80,16 @@ def get_raid_by_message_id(
 
 def get_all_raids(session: Session) -> list[model.Raid]:
     return list(session.scalars(select(model.Raid)))
+
+
+def get_all_raids_by_guild_id(session: Session, guild_id: Snowflakeish) -> list[model.Raid]:
+    return list(
+        session.scalars(
+            select(model.Raid).where(
+                model.Raid.guild_id == guild_id
+            )
+        )
+    )
 
 
 def delete_raid_by_message_id(
@@ -87,13 +113,14 @@ def create_raid_user(
     session: Session,
     raid_id: int,
     discord_id: Snowflakeish,
-    role: str
+    role: str,
+    has_cleared: bool | None = None,
 ) -> model.RaidUser:
     user = model.RaidUser(
         raid_id=raid_id,
         discord_id=discord_id,
         role=role,
-        has_cleared=False
+        has_cleared=has_cleared
     )
     session.add(user)
     session.flush()
