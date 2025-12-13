@@ -111,10 +111,18 @@ async def _(
                         message_id=message.id,
                     )
                 )
-                await plugin.client.rest.create_message_thread(
+                thread = await plugin.client.rest.create_message_thread(
                     ctx.channel_id,
                     message.id,
                     f"{title} @ {datetime.fromtimestamp(when, UTC).strftime('%Y-%m-%d %H:%M')} UTC"
+                )
+                await plugin.client.rest.create_message(
+                    thread.id,
+                    components=build_initial_thread_message(
+                        ctx.guild_id,
+                        ctx.channel_id,
+                        message.id,
+                    )
                 )
             except ForbiddenError:
                 await ctx.respond(
@@ -577,6 +585,28 @@ def build_raid_removal_message(
     }
 
     message = raid_config.raid_removal_dm_template.format_map(template_values)
+
+    components = [
+        TextDisplayComponentBuilder(
+            content=message
+        )
+    ]
+
+    return components
+
+
+def build_initial_thread_message(
+    guild_id: Snowflakeish,
+    channel_id: Snowflakeish,
+    message_id: Snowflakeish,
+) -> Components:
+    raid_config = raid_cfg()
+
+    template_values: dict[str, object] = {
+        "raid_message_link": f"https://discord.com/channels/{guild_id}/{channel_id}/{message_id}",
+    }
+
+    message = raid_config.raid_initial_thread_message_template.format_map(template_values)
 
     components = [
         TextDisplayComponentBuilder(

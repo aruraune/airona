@@ -56,6 +56,10 @@ Requires [uv](https://docs.astral.sh/uv/).
    You were removed from the raid {title} scheduled for <t:{when}:F>.
    Reason: {raid_removal_reason}
    """
+
+   raid_initial_thread_message_template = """
+   View {raid_message_link} to use the buttons.
+   """
    
    [emoji]
    dps = "<:bpsr_dps:1449010393916903586>"
