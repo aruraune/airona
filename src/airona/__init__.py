@@ -6,7 +6,7 @@ from hikari import GatewayBot, Intents
 from airona.db.connection import db
 from airona.db.model import Base
 from airona.env import cfg, discord
-from airona.ext import settings, raid
+from airona.ext import raid, settings
 
 
 def main() -> None:

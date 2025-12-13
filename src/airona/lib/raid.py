@@ -50,7 +50,7 @@ def create_raid(
         coalesce=True,
         misfire_grace_time=raid_cfg().raid_misfire_grace_time,
         func=put_raid,
-        args=(raid.id,)
+        args=(raid.id,),
     )
     return raid
 
@@ -59,11 +59,7 @@ def get_raid_by_raid_id(
     session: Session,
     raid_id: int,
 ) -> model.Raid | None:
-    raid = session.scalar(
-        select(model.Raid).where(
-            model.Raid.id == raid_id
-        )
-    )
+    raid = session.scalar(select(model.Raid).where(model.Raid.id == raid_id))
     return raid
 
 
@@ -92,7 +88,7 @@ def delete_raid_by_message_id(
 ) -> model.Raid:
     raid = get_raid_by_message_id(session, guild_id, message_id)
     if raid is None:
-        raise IndexError(f"Raid not registered.")
+        raise IndexError("Raid not registered.")
     try:
         raid_scheduler.remove_job(f"{raid.id}")
     except JobLookupError:
@@ -109,10 +105,7 @@ def create_raid_user(
     has_cleared: bool | None = None,
 ) -> model.RaidUser:
     user = model.RaidUser(
-        raid_id=raid_id,
-        discord_id=discord_id,
-        role=role,
-        has_cleared=has_cleared
+        raid_id=raid_id, discord_id=discord_id, role=role, has_cleared=has_cleared
     )
     session.add(user)
     session.flush()
@@ -126,7 +119,8 @@ def get_raid_user_by_discord_id(
 ) -> model.RaidUser | None:
     user = session.scalar(
         select(model.RaidUser).where(
-            (model.RaidUser.raid_id == raid_id) & (model.RaidUser.discord_id == discord_id)
+            (model.RaidUser.raid_id == raid_id)
+            & (model.RaidUser.discord_id == discord_id)
         )
     )
     return user

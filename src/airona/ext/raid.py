@@ -1,45 +1,58 @@
+import re
+from datetime import UTC, datetime
+
 import arc
 import hikari
-import re
-
 from apscheduler.jobstores.base import JobLookupError
 from apscheduler.jobstores.memory import MemoryJobStore
 from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.interval import IntervalTrigger
-from datetime import UTC, datetime
-from arc import GatewayPlugin, GatewayContext, AutodeferMode, Option, IntParams, StrParams, UserParams, BoolParams
+from arc import (
+    AutodeferMode,
+    BoolParams,
+    GatewayContext,
+    GatewayPlugin,
+    IntParams,
+    Option,
+    StrParams,
+    UserParams,
+)
 from hikari import (
-    MessageFlag,
-    ForbiddenError,
     ButtonStyle,
     ComponentInteractionCreateEvent,
+    CustomEmoji,
+    ForbiddenError,
+    InternalServerError,
+    MessageFlag,
+    NotFoundError,
+    Permissions,
     ResponseType,
     Snowflakeish,
-    NotFoundError,
     StartedEvent,
-    CustomEmoji,
-    InternalServerError, Permissions
 )
-from hikari.impl import TextDisplayComponentBuilder, MessageActionRowBuilder, InteractiveButtonBuilder
+from hikari.impl import (
+    InteractiveButtonBuilder,
+    MessageActionRowBuilder,
+    TextDisplayComponentBuilder,
+)
 
 from airona.db import model
 from airona.db.connection import db
-from airona.env import raid_cfg, cfg
+from airona.env import cfg, raid_cfg
 from airona.lib.raid import (
     create_raid,
-    get_raid_by_raid_id,
-    get_raid_by_message_id,
-    get_all_raids,
-    delete_raid_by_message_id,
     create_raid_user,
-    get_raid_user_by_discord_id,
-    edit_raid_user,
+    delete_raid_by_message_id,
     delete_raid_user_by_discord_id,
-    raid_queue
+    edit_raid_user,
+    get_all_raids,
+    get_raid_by_message_id,
+    get_raid_by_raid_id,
+    get_raid_user_by_discord_id,
+    raid_queue,
 )
 from airona.typing import Components
-
 
 plugin = GatewayPlugin(__name__)
 
@@ -66,9 +79,9 @@ RAID_SIGNOFF = f"{RAID_PREFIX}:signoff"
 raid_scheduler = AsyncIOScheduler(
     jobstores={
         "default": SQLAlchemyJobStore(cfg().apscheduler.jobstore),
-        "memory": MemoryJobStore()
+        "memory": MemoryJobStore(),
     },
-    timezone=UTC
+    timezone=UTC,
 )
 
 
@@ -79,8 +92,15 @@ async def _(
     host: Option[hikari.User, UserParams("the host of the raid.")],
     ingame_host_username: Option[str, StrParams("the in-game username of the host.")],
     ingame_host_uid: Option[str, StrParams("the in-game uid of the host.")],
-    when: Option[int, IntParams("the time when the raid will start (timestamp in seconds, use hammertime.cyou).")],
-    title: Option[str, StrParams("the title of the raid announcement (e.g. All raids, Light NM).")],
+    when: Option[
+        int,
+        IntParams(
+            "the time when the raid will start (timestamp in seconds, use hammertime.cyou)."
+        ),
+    ],
+    title: Option[
+        str, StrParams("the title of the raid announcement (e.g. All raids, Light NM).")
+    ],
 ) -> None:
     if ctx.guild_id is None:
         return
@@ -102,7 +122,7 @@ async def _(
                     host_uid=ingame_host_uid,
                     guild_id=ctx.guild_id,
                     channel_id=ctx.channel_id,
-                )
+                ),
             )
             await plugin.client.rest.edit_message(
                 ctx.channel_id,
@@ -116,12 +136,12 @@ async def _(
                     guild_id=ctx.guild_id,
                     channel_id=ctx.channel_id,
                     message_id=message.id,
-                )
+                ),
             )
             thread = await plugin.client.rest.create_message_thread(
                 ctx.channel_id,
                 message.id,
-                f"{title} @ {datetime.fromtimestamp(when, UTC).strftime('%Y-%m-%d %H:%M')} UTC"
+                f"{title} @ {datetime.fromtimestamp(when, UTC).strftime('%Y-%m-%d %H:%M')} UTC",
             )
             await plugin.client.rest.create_message(
                 thread.id,
@@ -129,7 +149,7 @@ async def _(
                     ctx.guild_id,
                     ctx.channel_id,
                     message.id,
-                )
+                ),
             )
         except ForbiddenError:
             await ctx.respond(
@@ -149,7 +169,8 @@ async def _(
                     ingame_host_username,
                     ingame_host_uid,
                     when,
-                    title)
+                    title,
+                )
             except:
                 await plugin.client.rest.delete_message(ctx.channel_id, message.id)
                 raise
@@ -161,21 +182,32 @@ async def _(
         flags=MessageFlag.EPHEMERAL,
     )
 
+
 @raid_group.include
 @arc.slash_subcommand("add", "Add a user to a raid.")
 async def _(
     ctx: GatewayContext,
     message_id: Option[str, StrParams("the id of the raid.")],
     user: Option[hikari.User, UserParams("the user to add.")],
-    role: Option[str, StrParams("the role of the user (dps, tank, support).", choices=[USER_ROLE_DPS, USER_ROLE_TANK, USER_ROLE_SUPPORT])],
-    has_cleared: Option[bool, BoolParams("whether the user has already cleared the raid.")],
+    role: Option[
+        str,
+        StrParams(
+            "the role of the user (dps, tank, support).",
+            choices=[USER_ROLE_DPS, USER_ROLE_TANK, USER_ROLE_SUPPORT],
+        ),
+    ],
+    has_cleared: Option[
+        bool, BoolParams("whether the user has already cleared the raid.")
+    ],
 ) -> None:
     if ctx.guild_id is None:
         return
     try:
         message_id: int = int(message_id)
     except ValueError:
-        await ctx.respond("\N{CROSS MARK} Invalid `message_id`.", flags=MessageFlag.EPHEMERAL)
+        await ctx.respond(
+            "\N{CROSS MARK} Invalid `message_id`.", flags=MessageFlag.EPHEMERAL
+        )
         return
     if role not in [USER_ROLE_DPS, USER_ROLE_TANK, USER_ROLE_SUPPORT]:
         await ctx.respond(
@@ -194,9 +226,13 @@ async def _(
                 raid_user = get_raid_user_by_discord_id(session, raid.id, user.id)
 
                 if raid_user is not None:
-                    edit_raid_user(session, raid.id, user.id, role=role, has_cleared=has_cleared)
+                    edit_raid_user(
+                        session, raid.id, user.id, role=role, has_cleared=has_cleared
+                    )
                 else:
-                    create_raid_user(session, raid.id, user.id, role=role, has_cleared=has_cleared)
+                    create_raid_user(
+                        session, raid.id, user.id, role=role, has_cleared=has_cleared
+                    )
 
         if raid_id is not None:
             await update_raid_message(raid_id)
@@ -227,7 +263,9 @@ async def _(
     try:
         message_id: int = int(message_id)
     except ValueError:
-        await ctx.respond("\N{CROSS MARK} Invalid `message_id`.", flags=MessageFlag.EPHEMERAL)
+        await ctx.respond(
+            "\N{CROSS MARK} Invalid `message_id`.", flags=MessageFlag.EPHEMERAL
+        )
         return
     try:
         raid_user_remove_response = None
@@ -316,13 +354,13 @@ async def update_raid_message(
 
     try:
         await plugin.client.rest.edit_message(
-            channel_id,
-            message_id,
-            components=raid_message
+            channel_id, message_id, components=raid_message
         )
     except NotFoundError:
         with db().sm.begin() as session:
-            delete_raid_by_message_id(raid_scheduler, session, raid.guild_id, raid.message_id)
+            delete_raid_by_message_id(
+                raid_scheduler, session, raid.guild_id, raid.message_id
+            )
         return
 
 
@@ -341,8 +379,12 @@ def build_raid_message(
 
     users = users or []
 
-    def filter_users(players: list[model.RaidUser], role: str, has_cleared: bool) -> list[model.RaidUser]:
-        return list(filter(lambda u: u.role == role and u.has_cleared == has_cleared, players))
+    def filter_users(
+        players: list[model.RaidUser], role: str, has_cleared: bool
+    ) -> list[model.RaidUser]:
+        return list(
+            filter(lambda u: u.role == role and u.has_cleared == has_cleared, players)
+        )
 
     def format_user(u: model.RaidUser) -> str:
         return f"<@{u.discord_id}>"
@@ -353,7 +395,11 @@ def build_raid_message(
         match = re.match(r"^<a?:(?P<name>[^:]+):(?P<id>\d+)>$", emoji)
         if match:
             try:
-                return CustomEmoji(id=match.group("id"), name=match.group("name"), is_animated=emoji.startswith("<a:"))
+                return CustomEmoji(
+                    id=match.group("id"),
+                    name=match.group("name"),
+                    is_animated=emoji.startswith("<a:"),
+                )
             except Exception:
                 return emoji
         return emoji
@@ -379,12 +425,16 @@ def build_raid_message(
     total_dps = len(dps_need_clear_list) + len(dps_cleared_list)
     total_tank = len(tank_need_clear_list) + len(tank_cleared_list)
     total_support = len(support_need_clear_list) + len(support_cleared_list)
-    total_cleared = len(dps_cleared_list) + len(tank_cleared_list) + len(support_cleared_list)
+    total_cleared = (
+        len(dps_cleared_list) + len(tank_cleared_list) + len(support_cleared_list)
+    )
 
     raid_message_link = ""
 
     if guild_id and channel_id and message_id:
-        raid_message_link = f"https://discord.com/channels/{guild_id}/{channel_id}/{message_id}"
+        raid_message_link = (
+            f"https://discord.com/channels/{guild_id}/{channel_id}/{message_id}"
+        )
 
     template_values: dict[str, object] = {
         "when": when,
@@ -416,9 +466,7 @@ def build_raid_message(
     message = raid_config.raid_message_template.format_map(template_values)
 
     components = [
-        TextDisplayComponentBuilder(
-            content=message
-        ),
+        TextDisplayComponentBuilder(content=message),
         MessageActionRowBuilder(
             components=[
                 InteractiveButtonBuilder(
@@ -451,7 +499,7 @@ def build_raid_message(
                     style=ButtonStyle.SECONDARY,
                 ),
             ]
-        )
+        ),
     ]
 
     return components
@@ -472,8 +520,16 @@ def build_raid_ping(
 
     users = users or []
 
-    def filter_users(usrlist: list[model.RaidUser], role: str, has_cleared: bool) -> list[model.RaidUser]:
-        return list(filter(lambda u: u.role == role and (has_cleared is None or u.has_cleared == has_cleared), usrlist))
+    def filter_users(
+        usrlist: list[model.RaidUser], role: str, has_cleared: bool
+    ) -> list[model.RaidUser]:
+        return list(
+            filter(
+                lambda u: u.role == role
+                and (has_cleared is None or u.has_cleared == has_cleared),
+                usrlist,
+            )
+        )
 
     def format_user(u: model.RaidUser) -> str:
         return f"<@{u.discord_id}>"
@@ -500,7 +556,9 @@ def build_raid_ping(
     total_dps = len(dps_need_clear_list) + len(dps_cleared_list)
     total_tank = len(tank_need_clear_list) + len(tank_cleared_list)
     total_support = len(support_need_clear_list) + len(support_cleared_list)
-    total_cleared = len(dps_cleared_list) + len(tank_cleared_list) + len(support_cleared_list)
+    total_cleared = (
+        len(dps_cleared_list) + len(tank_cleared_list) + len(support_cleared_list)
+    )
 
     template_values: dict[str, object] = {
         "when": when,
@@ -526,11 +584,7 @@ def build_raid_ping(
 
     message = raid_config.raid_ping_template.format_map(template_values)
 
-    components = [
-        TextDisplayComponentBuilder(
-            content=message
-        )
-    ]
+    components = [TextDisplayComponentBuilder(content=message)]
 
     return components
 
@@ -551,8 +605,16 @@ def build_raid_removal_message(
 
     users = users or []
 
-    def filter_users(usrlist: list[model.RaidUser], role: str, has_cleared: bool) -> list[model.RaidUser]:
-        return list(filter(lambda u: u.role == role and (has_cleared is None or u.has_cleared == has_cleared), usrlist))
+    def filter_users(
+        usrlist: list[model.RaidUser], role: str, has_cleared: bool
+    ) -> list[model.RaidUser]:
+        return list(
+            filter(
+                lambda u: u.role == role
+                and (has_cleared is None or u.has_cleared == has_cleared),
+                usrlist,
+            )
+        )
 
     def format_user(u: model.RaidUser) -> str:
         return f"<@{u.discord_id}>"
@@ -579,7 +641,9 @@ def build_raid_removal_message(
     total_dps = len(dps_need_clear_list) + len(dps_cleared_list)
     total_tank = len(tank_need_clear_list) + len(tank_cleared_list)
     total_support = len(support_need_clear_list) + len(support_cleared_list)
-    total_cleared = len(dps_cleared_list) + len(tank_cleared_list) + len(support_cleared_list)
+    total_cleared = (
+        len(dps_cleared_list) + len(tank_cleared_list) + len(support_cleared_list)
+    )
 
     template_values: dict[str, object] = {
         "when": when,
@@ -606,11 +670,7 @@ def build_raid_removal_message(
 
     message = raid_config.raid_removal_dm_template.format_map(template_values)
 
-    components = [
-        TextDisplayComponentBuilder(
-            content=message
-        )
-    ]
+    components = [TextDisplayComponentBuilder(content=message)]
 
     return components
 
@@ -626,13 +686,11 @@ def build_initial_thread_message(
         "raid_message_link": f"https://discord.com/channels/{guild_id}/{channel_id}/{message_id}",
     }
 
-    message = raid_config.raid_initial_thread_message_template.format_map(template_values)
+    message = raid_config.raid_initial_thread_message_template.format_map(
+        template_values
+    )
 
-    components = [
-        TextDisplayComponentBuilder(
-            content=message
-        )
-    ]
+    components = [TextDisplayComponentBuilder(content=message)]
 
     return components
 
@@ -659,18 +717,34 @@ async def _(event: ComponentInteractionCreateEvent):
         try:
             if user is None:
                 if itx.custom_id.startswith(RAID_ROLE_PREFIX):
-                    create_raid_user(session, raid.id, itx.member.id, itx.custom_id[len(RAID_ROLE_PREFIX) + 1:], False)
+                    create_raid_user(
+                        session,
+                        raid.id,
+                        itx.member.id,
+                        itx.custom_id[len(RAID_ROLE_PREFIX) + 1 :],
+                        False,
+                    )
                 else:
                     error = "\N{CROSS MARK} Please select a role first!"
             else:
                 if itx.custom_id.startswith(RAID_ROLE_PREFIX):
-                    edit_raid_user(session, raid.id, user.discord_id, role=itx.custom_id[len(RAID_ROLE_PREFIX) + 1:])
+                    edit_raid_user(
+                        session,
+                        raid.id,
+                        user.discord_id,
+                        role=itx.custom_id[len(RAID_ROLE_PREFIX) + 1 :],
+                    )
                 elif itx.custom_id == RAID_CLEARED:
-                    edit_raid_user(session, raid.id, user.discord_id, has_cleared=not user.has_cleared)
+                    edit_raid_user(
+                        session,
+                        raid.id,
+                        user.discord_id,
+                        has_cleared=not user.has_cleared,
+                    )
                 elif itx.custom_id == RAID_SIGNOFF:
                     delete_raid_user_by_discord_id(session, raid.id, user.discord_id)
                 else:
-                    error = "\N{CROSS MARK} Invalid action!",
+                    error = ("\N{CROSS MARK} Invalid action!",)
         except ValueError as e:
             print(f"Failed to update raid user: {e}")
             return
@@ -710,18 +784,24 @@ async def cleanup_deleted_raids():
         raids = get_all_raids(session)
 
         for raid in raids:
-            to_be_deleted.append({
-                "channel_id": raid.channel_id,
-                "message_id": raid.message_id,
-                "guild_id": raid.guild_id,
-            })
+            to_be_deleted.append(
+                {
+                    "channel_id": raid.channel_id,
+                    "message_id": raid.message_id,
+                    "guild_id": raid.guild_id,
+                }
+            )
 
     for raid in to_be_deleted:
         try:
-            await plugin.client.rest.fetch_message(raid["channel_id"], raid["message_id"])
+            await plugin.client.rest.fetch_message(
+                raid["channel_id"], raid["message_id"]
+            )
         except NotFoundError:
             with db().sm.begin() as session:
-                delete_raid_by_message_id(raid_scheduler, session, raid["guild_id"], raid["message_id"])
+                delete_raid_by_message_id(
+                    raid_scheduler, session, raid["guild_id"], raid["message_id"]
+                )
         except ForbiddenError:
             continue
 
@@ -750,7 +830,9 @@ async def raid_ping(raid_id: int) -> None:
             raid.host_username,
             raid.host_uid,
         )
-        user_mentions = [raid.host_discord_id] + [user.discord_id for user in raid.users]
+        user_mentions = [raid.host_discord_id] + [
+            user.discord_id for user in raid.users
+        ]
     try:
         await plugin.client.rest.create_message(
             channel=channel_id,
@@ -759,7 +841,9 @@ async def raid_ping(raid_id: int) -> None:
         )
     except (ForbiddenError, NotFoundError):
         with db().sm.begin() as session:
-            delete_raid_by_message_id(raid_scheduler, session, raid.guild_id, raid.message_id)
+            delete_raid_by_message_id(
+                raid_scheduler, session, raid.guild_id, raid.message_id
+            )
         return
     except InternalServerError:
         return
@@ -778,7 +862,7 @@ async def _(_: StartedEvent) -> None:
     raid_scheduler.add_job(
         cleanup_deleted_raids,
         IntervalTrigger(seconds=raid_cfg().raid_cleanup_interval),
-        jobstore="memory"
+        jobstore="memory",
     )
 
     raid_scheduler.start()
