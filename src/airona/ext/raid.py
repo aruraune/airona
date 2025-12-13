@@ -703,9 +703,9 @@ async def raid_ping(raid_id: int) -> None:
                     raid.when,
                     raid.title,
                     raid.host_mention,
+                    raid.users,
                     raid.host_username,
                     raid.host_uid,
-                    raid.users
                 ),
             )
         except (ForbiddenError, NotFoundError):
