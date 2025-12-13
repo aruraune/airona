@@ -86,6 +86,12 @@ async def _(
 ) -> None:
     if ctx.guild_id is None:
         return
+    if when <= int(datetime.now(UTC).timestamp()):
+        await ctx.respond(
+            "\N{CROSS MARK} The raid time must be in the future.",
+            flags=MessageFlag.EPHEMERAL,
+        )
+        return
     try:
         with db().sm.begin() as session:
             try:
