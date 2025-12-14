@@ -124,21 +124,6 @@ async def _(
                 ),
                 user_mentions=[host.id],
             )
-            await plugin.client.rest.edit_message(
-                ctx.channel_id,
-                message.id,
-                components=build_raid_message(
-                    when,
-                    title,
-                    host.id,
-                    host_name=ingame_host_username,
-                    host_uid=ingame_host_uid,
-                    guild_id=ctx.guild_id,
-                    channel_id=ctx.channel_id,
-                    message_id=message.id,
-                ),
-                user_mentions=[host.id],
-            )
             thread = await plugin.client.rest.create_message_thread(
                 ctx.channel_id,
                 message.id,
@@ -418,13 +403,6 @@ def build_raid_message(
         len(dps_cleared_list) + len(tank_cleared_list) + len(support_cleared_list)
     )
 
-    raid_message_link = ""
-
-    if guild_id and channel_id and message_id:
-        raid_message_link = (
-            f"https://discord.com/channels/{guild_id}/{channel_id}/{message_id}"
-        )
-
     template_values: dict[str, object] = {
         "when": when,
         "title": title,
@@ -444,7 +422,6 @@ def build_raid_message(
         "support_need_clear": support_need_clear,
         "support_separator": support_separator,
         "support_cleared": support_cleared,
-        "raid_message_link": raid_message_link,
         "total": total_users,
         "dps_total": total_dps,
         "tank_total": total_tank,
