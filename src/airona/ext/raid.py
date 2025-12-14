@@ -487,13 +487,13 @@ def build_raid_ping(
     users = users or []
 
     def filter_users(
-        usrlist: list[model.RaidUser], role: str, has_cleared: bool
+        userlist: list[model.RaidUser], role: str, has_cleared: bool
     ) -> list[model.RaidUser]:
         return list(
             filter(
                 lambda u: u.role == role
                 and (has_cleared is None or u.has_cleared == has_cleared),
-                usrlist,
+                userlist,
             )
         )
 
@@ -572,13 +572,13 @@ def build_raid_removal_message(
     users = users or []
 
     def filter_users(
-        usrlist: list[model.RaidUser], role: str, has_cleared: bool
+        userlist: list[model.RaidUser], role: str, has_cleared: bool
     ) -> list[model.RaidUser]:
         return list(
             filter(
                 lambda u: u.role == role
                 and (has_cleared is None or u.has_cleared == has_cleared),
-                usrlist,
+                userlist,
             )
         )
 
