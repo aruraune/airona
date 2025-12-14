@@ -122,6 +122,7 @@ async def _(
                     guild_id=ctx.guild_id,
                     channel_id=ctx.channel_id,
                 ),
+                user_mentions=[host.id],
             )
             await plugin.client.rest.edit_message(
                 ctx.channel_id,
@@ -136,6 +137,7 @@ async def _(
                     channel_id=ctx.channel_id,
                     message_id=message.id,
                 ),
+                user_mentions=[host.id],
             )
             thread = await plugin.client.rest.create_message_thread(
                 ctx.channel_id,
@@ -350,10 +352,13 @@ async def update_raid_message(
             raid.channel_id,
             raid.message_id,
         )
+        user_mentions = [raid.host_discord_id] + [
+            user.discord_id for user in raid.users
+        ]
 
     try:
         await plugin.client.rest.edit_message(
-            channel_id, message_id, components=raid_message
+            channel_id, message_id, components=raid_message, user_mentions=user_mentions
         )
     except NotFoundError:
         with db().sm.begin() as session:
@@ -746,6 +751,9 @@ async def _(event: ComponentInteractionCreateEvent):
             raid.channel_id,
             raid.message_id,
         )
+        user_mentions = [raid.host_discord_id] + [
+            user.discord_id for user in raid.users
+        ]
 
     if error is not None:
         await itx.create_initial_response(
@@ -758,6 +766,7 @@ async def _(event: ComponentInteractionCreateEvent):
     await itx.create_initial_response(
         ResponseType.MESSAGE_UPDATE,
         components=raid_message,
+        user_mentions=user_mentions,
     )
 
 
