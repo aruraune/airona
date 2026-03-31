@@ -43,6 +43,7 @@ def cfg() -> Config:
 class RaidConfig(BaseModel):
     raid_cleanup_interval: int
     raid_misfire_grace_time: int
+    raid_reminder_offset: int
 
     raid_message_template: str
     raid_ping_template: str

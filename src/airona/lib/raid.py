@@ -1,5 +1,5 @@
 from asyncio import Queue
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 from apscheduler.jobstores.base import JobLookupError
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
@@ -26,7 +26,9 @@ def create_raid(
 ) -> model.Raid:
     try:
         dt = datetime.fromtimestamp(when, tz=UTC)
-        trigger = DateTrigger(run_date=dt)
+        trigger = DateTrigger(
+            run_date=dt + timedelta(seconds=raid_cfg().raid_reminder_offset)
+        )
     except ValueError:
         raise
     guild = session.get(model.Guild, guild_id) or model.Guild(id=guild_id)
